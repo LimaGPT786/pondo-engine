@@ -3,16 +3,28 @@
   "WorkspaceRootPath": "C:\\dev\\pondo-engine\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{2D7A529E-CD25-4B80-B1FB-88FB31935BFA}|Pondo\\Pondo.vcxproj|C:\\dev\\pondo-engine\\Pondo\\src\\Test.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{2D7A529E-CD25-4B80-B1FB-88FB31935BFA}|Pondo\\Pondo.vcxproj|solutionrelative:Pondo\\src\\Test.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+      "AbsoluteMoniker": "D:0:0:{0F18B45D-9E50-4248-90B7-9A38C6BD9FC4}|Sandbox\\Sandbox.vcxproj|C:\\dev\\pondo-engine\\Sandbox\\src\\SandboxApp.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{0F18B45D-9E50-4248-90B7-9A38C6BD9FC4}|Sandbox\\Sandbox.vcxproj|solutionrelative:Sandbox\\src\\SandboxApp.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{2D7A529E-CD25-4B80-B1FB-88FB31935BFA}|Pondo\\Pondo.vcxproj|C:\\dev\\pondo-engine\\Pondo\\src\\Test.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{2D7A529E-CD25-4B80-B1FB-88FB31935BFA}|Pondo\\Pondo.vcxproj|solutionrelative:Pondo\\src\\Test.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+      "AbsoluteMoniker": "D:0:0:{2D7A529E-CD25-4B80-B1FB-88FB31935BFA}|Pondo\\Pondo.vcxproj|C:\\dev\\pondo-engine\\Pondo\\src\\Pondo\\EntryPoint.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{2D7A529E-CD25-4B80-B1FB-88FB31935BFA}|Pondo\\Pondo.vcxproj|solutionrelative:Pondo\\src\\Pondo\\EntryPoint.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{0F18B45D-9E50-4248-90B7-9A38C6BD9FC4}|Sandbox\\Sandbox.vcxproj|C:\\dev\\pondo-engine\\Sandbox\\src\\Application.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{0F18B45D-9E50-4248-90B7-9A38C6BD9FC4}|Sandbox\\Sandbox.vcxproj|solutionrelative:Sandbox\\src\\Application.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+      "AbsoluteMoniker": "D:0:0:{2D7A529E-CD25-4B80-B1FB-88FB31935BFA}|Pondo\\Pondo.vcxproj|C:\\dev\\pondo-engine\\Pondo\\src\\Pondo.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{2D7A529E-CD25-4B80-B1FB-88FB31935BFA}|Pondo\\Pondo.vcxproj|solutionrelative:Pondo\\src\\Pondo.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2D7A529E-CD25-4B80-B1FB-88FB31935BFA}|Pondo\\Pondo.vcxproj|C:\\dev\\pondo-engine\\Pondo\\src\\Pondo\\Application.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{2D7A529E-CD25-4B80-B1FB-88FB31935BFA}|Pondo\\Pondo.vcxproj|solutionrelative:Pondo\\src\\Pondo\\Application.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2D7A529E-CD25-4B80-B1FB-88FB31935BFA}|Pondo\\Pondo.vcxproj|C:\\dev\\pondo-engine\\Pondo\\src\\Pondo\\Core.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{2D7A529E-CD25-4B80-B1FB-88FB31935BFA}|Pondo\\Pondo.vcxproj|solutionrelative:Pondo\\src\\Pondo\\Core.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2D7A529E-CD25-4B80-B1FB-88FB31935BFA}|Pondo\\Pondo.vcxproj|C:\\dev\\pondo-engine\\Pondo\\src\\Pondo\\Application.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{2D7A529E-CD25-4B80-B1FB-88FB31935BFA}|Pondo\\Pondo.vcxproj|solutionrelative:Pondo\\src\\Pondo\\Application.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     }
   ],
   "DocumentGroupContainers": [
@@ -22,45 +34,85 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 1,
+          "SelectedChildIndex": 0,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "Application.cpp",
-              "DocumentMoniker": "C:\\dev\\pondo-engine\\Sandbox\\src\\Application.cpp",
-              "RelativeDocumentMoniker": "Sandbox\\src\\Application.cpp",
-              "ToolTip": "C:\\dev\\pondo-engine\\Sandbox\\src\\Application.cpp",
-              "RelativeToolTip": "Sandbox\\src\\Application.cpp",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAABAAAAAAAAAA==",
+              "DocumentIndex": 0,
+              "Title": "SandboxApp.cpp",
+              "DocumentMoniker": "C:\\dev\\pondo-engine\\Sandbox\\src\\SandboxApp.cpp",
+              "RelativeDocumentMoniker": "Sandbox\\src\\SandboxApp.cpp",
+              "ToolTip": "C:\\dev\\pondo-engine\\Sandbox\\src\\SandboxApp.cpp",
+              "RelativeToolTip": "Sandbox\\src\\SandboxApp.cpp",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA4AAAAWAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
               "WhenOpened": "2026-05-12T02:47:03.533Z",
+              "IsPinned": true,
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "Test.cpp",
-              "DocumentMoniker": "C:\\dev\\pondo-engine\\Pondo\\src\\Test.cpp",
-              "RelativeDocumentMoniker": "Pondo\\src\\Test.cpp",
-              "ToolTip": "C:\\dev\\pondo-engine\\Pondo\\src\\Test.cpp",
-              "RelativeToolTip": "Pondo\\src\\Test.cpp",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAUAAAAPAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2026-05-12T02:43:06.031Z",
+              "DocumentIndex": 3,
+              "Title": "Application.h",
+              "DocumentMoniker": "C:\\dev\\pondo-engine\\Pondo\\src\\Pondo\\Application.h",
+              "RelativeDocumentMoniker": "Pondo\\src\\Pondo\\Application.h",
+              "ToolTip": "C:\\dev\\pondo-engine\\Pondo\\src\\Pondo\\Application.h",
+              "RelativeToolTip": "Pondo\\src\\Pondo\\Application.h",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAsAAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
+              "WhenOpened": "2026-05-12T03:15:12.609Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 1,
-              "Title": "Test.h",
-              "DocumentMoniker": "C:\\dev\\pondo-engine\\Pondo\\src\\Test.h",
-              "RelativeDocumentMoniker": "Pondo\\src\\Test.h",
-              "ToolTip": "C:\\dev\\pondo-engine\\Pondo\\src\\Test.h",
-              "RelativeToolTip": "Pondo\\src\\Test.h",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAMAAAAkAAAAAAAAAA==",
+              "Title": "EntryPoint.h",
+              "DocumentMoniker": "C:\\dev\\pondo-engine\\Pondo\\src\\Pondo\\EntryPoint.h",
+              "RelativeDocumentMoniker": "Pondo\\src\\Pondo\\EntryPoint.h",
+              "ToolTip": "C:\\dev\\pondo-engine\\Pondo\\src\\Pondo\\EntryPoint.h",
+              "RelativeToolTip": "Pondo\\src\\Pondo\\EntryPoint.h",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAsAAAAMAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
-              "WhenOpened": "2026-05-12T02:42:56.669Z",
+              "WhenOpened": "2026-05-12T03:39:22.026Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "Pondo.h",
+              "DocumentMoniker": "C:\\dev\\pondo-engine\\Pondo\\src\\Pondo.h",
+              "RelativeDocumentMoniker": "Pondo\\src\\Pondo.h",
+              "ToolTip": "C:\\dev\\pondo-engine\\Pondo\\src\\Pondo.h",
+              "RelativeToolTip": "Pondo\\src\\Pondo.h",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
+              "WhenOpened": "2026-05-12T03:25:59.216Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "Core.h",
+              "DocumentMoniker": "C:\\dev\\pondo-engine\\Pondo\\src\\Pondo\\Core.h",
+              "RelativeDocumentMoniker": "Pondo\\src\\Pondo\\Core.h",
+              "ToolTip": "C:\\dev\\pondo-engine\\Pondo\\src\\Pondo\\Core.h",
+              "RelativeToolTip": "Pondo\\src\\Pondo\\Core.h",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAAAkAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
+              "WhenOpened": "2026-05-12T03:14:38.023Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "Application.cpp",
+              "DocumentMoniker": "C:\\dev\\pondo-engine\\Pondo\\src\\Pondo\\Application.cpp",
+              "RelativeDocumentMoniker": "Pondo\\src\\Pondo\\Application.cpp",
+              "ToolTip": "C:\\dev\\pondo-engine\\Pondo\\src\\Pondo\\Application.cpp",
+              "RelativeToolTip": "Pondo\\src\\Pondo\\Application.cpp",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAMAAAAZAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2026-05-12T03:15:26.63Z",
               "EditorCaption": ""
             }
           ]
