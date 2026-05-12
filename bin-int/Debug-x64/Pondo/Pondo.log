@@ -1,0 +1,5 @@
+﻿C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppBuild.targets(536,5): warning MSB8004: Intermediate Directory does not end with a trailing slash.  This build instance will add the slash as it is required to allow proper evaluation of the Intermediate Directory.
+C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppBuild.targets(537,5): warning MSB8004: Output Directory does not end with a trailing slash.  This build instance will add the slash as it is required to allow proper evaluation of the Output Directory.
+  Test.cpp
+     Creating library C:\dev\pondo-engine\\bin\Debug-x64\Pondo\Pondo.lib and object C:\dev\pondo-engine\\bin\Debug-x64\Pondo\Pondo.exp
+  Pondo.vcxproj -> C:\dev\pondo-engine\bin\Debug-x64\Pondo\Pondo.dll
