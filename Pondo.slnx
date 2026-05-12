@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+  </Configurations>
+  <Project Path="Sandbox/Sandbox.vcxproj" Id="0f18b45d-9e50-4248-90b7-9a38c6bd9fc4" />
+  <Project Path="Pondo/Pondo.vcxproj" Id="2d7a529e-cd25-4b80-b1fb-88fb31935bfa" />
+</Solution>
