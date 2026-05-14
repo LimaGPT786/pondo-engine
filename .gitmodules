@@ -1,0 +1,3 @@
+[submodule "Pondo/vendor/spdlog"]
+	path = Pondo/vendor/spdlog
+	url = https://github.com/gabime/spdlog.git
