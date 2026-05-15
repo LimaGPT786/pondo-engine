@@ -7,8 +7,8 @@
 	#include <Pondo.h> and get access to all the public headers of Pondo
 */ 
 
-#include <stdio.h>
 #include "Pondo/Application.h"
+#include "Pondo/Log.h"
 
 // ---Entry Point-----------------
 
