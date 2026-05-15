@@ -15,9 +15,11 @@
     <ClInclude Include="src\Pondo\Application.h" />
     <ClInclude Include="src\Pondo\Core.h" />
     <ClInclude Include="src\Pondo\EntryPoint.h" />
+    <ClInclude Include="src\Pondo\Window.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Pondo\Application.cpp" />
+    <ClCompile Include="src\Pondo\Window.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>
@@ -67,10 +69,15 @@
       <PreprocessorDefinitions>PD_PLATFORM_WINDOWS;PD_BUILD_DLL;</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(SolutionDir)vendor\GLFW\include</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>$(SolutionDir)vendor\GLFW\lib-vc2022</AdditionalLibraryDirectories>
+      <AdditionalDependencies>glfw3.lib;
+opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -82,6 +89,7 @@
       <PreprocessorDefinitions>PD_PLATFORM_WINDOWS;PD_BUILD_DLL;</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

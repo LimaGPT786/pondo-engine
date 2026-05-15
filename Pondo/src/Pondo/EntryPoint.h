@@ -5,7 +5,7 @@
 extern Pondo::Application* Pondo::CreateApplication();
 
 int main(int argc, char** argv) {
-	printf("Hazel Engine\n");
+	printf("Pondo Engine\n");
 
 	auto app = Pondo::CreateApplication();
 	app->Run();
