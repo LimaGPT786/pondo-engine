@@ -27,15 +27,9 @@
     <ClInclude Include="src\Pondo\EntryPoint.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\Pondo\Window.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Pondo\Application.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Pondo\Window.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
