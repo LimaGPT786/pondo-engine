@@ -1,19 +1,22 @@
 #include "Application.h"
 
 namespace Pondo {
-	Application::Application()
-	{
+    Application::Application()
+    {
+        m_window = new Window({ "Pondo Engine", 1280, 720, false });
+        m_window->Init();
+    }
 
-	}
-	Application::~Application()
-	{
+    Application::~Application()
+    {
+        delete m_window;
+    }
 
-	}
-
-	void Application::Run() 
-	{
-		while (true) {
-
-		}
-	}
+    void Application::Run()
+    {
+        while (!m_window->ShouldClose())
+        {
+            m_window->OnUpdate();
+        }
+    }
 }

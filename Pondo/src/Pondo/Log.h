@@ -24,8 +24,8 @@ namespace Pondo {
 		};
 
 	private:
-		static std::shared_ptr<spdlog::logger> s_coreLogger;
-		static std::shared_ptr<spdlog::logger> s_clientLogger;
+		static PONDO_API std::shared_ptr<spdlog::logger> s_coreLogger;
+		static PONDO_API std::shared_ptr<spdlog::logger> s_clientLogger;
 
 	};
 }

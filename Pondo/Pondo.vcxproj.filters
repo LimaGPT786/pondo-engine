@@ -19,12 +19,18 @@
     <ClInclude Include="src\Pondo\Log.h">
       <Filter>Pondo</Filter>
     </ClInclude>
+    <ClInclude Include="src\Pondo\Window.h">
+      <Filter>Pondo</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Pondo\Application.cpp">
       <Filter>Pondo</Filter>
     </ClCompile>
     <ClCompile Include="src\Pondo\Log.cpp">
+      <Filter>Pondo</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Pondo\Window.cpp">
       <Filter>Pondo</Filter>
     </ClCompile>
   </ItemGroup>

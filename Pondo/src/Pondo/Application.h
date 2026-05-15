@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core.h"
+#include "Window.h"
 
 namespace Pondo {
 	/**
@@ -15,6 +16,9 @@ namespace Pondo {
 		virtual ~Application();
 
 		void Run();
+
+	private:
+		Window* m_window;
 	};
 
 	// To be defined in CLIENT

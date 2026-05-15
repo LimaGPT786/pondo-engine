@@ -23,7 +23,8 @@ project "Pondo"
 	}
 
 	includedirs {
-		"%{prj.name}/vendor/spdlog/include"
+		"%{prj.name}/vendor/spdlog/include",
+		"%{prj.name}/vendor/GLFW/include"
 	}
 
 	filter "system:windows"
