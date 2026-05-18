@@ -19,7 +19,7 @@ namespace Engine {
 
     void LayerStack::PushLayer(Layer* layer)
     {
-        // Insert at the current insert point (before any overlays).
+        // Insert at the current insert point (before any overlays)
         m_Layers.emplace(m_Layers.begin() + m_LayerInsertIndex, layer);
         m_LayerInsertIndex++;
         layer->OnAttach();
@@ -50,7 +50,7 @@ namespace Engine {
         {
             overlay->OnDetach();
             m_Layers.erase(it);
-            // m_LayerInsertIndex is unaffected — overlays live after it
+            // m_LayerInsertIndex is unaffected overlays live after it
         }
     }
 
