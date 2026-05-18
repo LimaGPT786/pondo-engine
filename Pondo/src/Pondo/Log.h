@@ -8,10 +8,13 @@
 
 namespace Pondo {
 	/*
-		A static class for logging. It initializes the spdlog library 
-		and provides a global logger instance that can be used throughout 
+		A static class for logging. It initializes the spdlog library
+		and provides a global logger instance that can be used throughout
 		the application.
 	*/
+
+#pragma warning(push)
+#pragma warning(disable: 4251)
 	class PONDO_API Log {
 	public:
 		static void Init();
@@ -28,6 +31,7 @@ namespace Pondo {
 		static std::shared_ptr<spdlog::logger> s_clientLogger;
 
 	};
+#pragma warning(pop)
 }
 
 // Core log macros

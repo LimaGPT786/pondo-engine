@@ -1,6 +1,9 @@
 #pragma once
 
 #include "Core.h"
+#include "Window.h"
+#include "Events/ApplicationEvents.h"
+#include "Events/Event.h"
 
 namespace Pondo {
 	/**
@@ -15,6 +18,13 @@ namespace Pondo {
 		virtual ~Application();
 
 		void Run();
+		void OnEvent(Event& event);
+
+	private:
+		bool OnWindowClose(WindowCloseEvent& e);
+
+		Window* m_window;
+		bool m_running = true;
 	};
 
 	// To be defined in CLIENT
