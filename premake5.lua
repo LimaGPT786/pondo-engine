@@ -8,6 +8,12 @@ workspace "Pondo"
 
 outputdir = "%{cfg.bulidcfg}-%{cfg.system}-%{cfg.architecture}"
 
+-- Include directories relative to root folder (solution directory)
+IncludeDir = {}
+IncludeDir["GLFW"] = "Pondo/vendor/GLFW/include"
+
+include "Pondo/vendor/GLFW"
+
 project "Pondo"
 	location "Pondo"
 	kind "SharedLib"
@@ -23,7 +29,14 @@ project "Pondo"
 	}
 
 	includedirs {
-		"%{prj.name}/vendor/spdlog/include"
+		"%{prj.name}/src",
+		"%{prj.name}/vendor/spdlog/include",
+		"%{IncludeDir.GLFW}"
+	}
+
+	links {
+		"GLFW",
+		"opengl32.lib"
 	}
 
 	filter "system:windows"

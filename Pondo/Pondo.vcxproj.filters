@@ -4,6 +4,9 @@
     <Filter Include="Pondo">
       <UniqueIdentifier>{C567E50D-317C-0DBF-FAFD-B01E66D109F0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Pondo\Events">
+      <UniqueIdentifier>{09040AF1-F566-9995-9EEC-D14B8A2E6518}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Pondo.h" />
@@ -16,7 +19,22 @@
     <ClInclude Include="src\Pondo\EntryPoint.h">
       <Filter>Pondo</Filter>
     </ClInclude>
+    <ClInclude Include="src\Pondo\Events\ApplicationEvents.h">
+      <Filter>Pondo\Events</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Pondo\Events\Event.h">
+      <Filter>Pondo\Events</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Pondo\Events\KeyEvents.h">
+      <Filter>Pondo\Events</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Pondo\Events\MouseEvents.h">
+      <Filter>Pondo\Events</Filter>
+    </ClInclude>
     <ClInclude Include="src\Pondo\Log.h">
+      <Filter>Pondo</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Pondo\Window.h">
       <Filter>Pondo</Filter>
     </ClInclude>
   </ItemGroup>
@@ -25,6 +43,9 @@
       <Filter>Pondo</Filter>
     </ClCompile>
     <ClCompile Include="src\Pondo\Log.cpp">
+      <Filter>Pondo</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Pondo\Window.cpp">
       <Filter>Pondo</Filter>
     </ClCompile>
   </ItemGroup>
