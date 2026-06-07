@@ -4,9 +4,7 @@
 * Update submodules by calling git submodule update --init --recursive
 
 # General Todos 
-* Add OpenGL, GLM, and GLFW (Graphics Library Framework) 
-* Math library (may belong to GLFW so math is taken care of) 
-* Create pipeline between OpenGL and GPU Begin drawing vertices and triangles
+* Add tooling such as move, scale, rotate
 
 # C++ Style Guide
 | Type | Case |
