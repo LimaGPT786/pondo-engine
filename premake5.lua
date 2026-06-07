@@ -6,13 +6,71 @@ workspace "Pondo"
 		"Dist"
 	}
 
-outputdir = "%{cfg.bulidcfg}-%{cfg.system}-%{cfg.architecture}"
+outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 
--- Include directories relative to root folder (solution directory)
 IncludeDir = {}
-IncludeDir["GLFW"] = "Pondo/vendor/GLFW/include"
+IncludeDir["GLFW"]  = "Pondo/vendor/GLFW/include"
+IncludeDir["glad"]  = "Pondo/vendor/glad/include"
+IncludeDir["glm"]   = "Pondo/vendor/glm"
+IncludeDir["ImGui"] = "Pondo/vendor/imgui"
 
 include "Pondo/vendor/GLFW"
+
+-- glad static lib
+project "glad"
+	location "Pondo/vendor/glad"
+	kind "StaticLib"
+	language "C"
+	staticruntime "On"
+
+	targetdir ("%{wks.location}/bin/" .. outputdir .. "/%{prj.name}")
+	objdir    ("%{wks.location}/bin-int/" .. outputdir .. "/%{prj.name}")
+
+	files { "Pondo/vendor/glad/src/glad.c" }
+
+	includedirs { "Pondo/vendor/glad/include" }
+
+	filter "configurations:Debug"
+		runtime "Debug"
+		symbols "on"
+
+	filter "configurations:Release"
+		runtime "Release"
+		optimize "on"
+
+-- ImGui static lib
+project "ImGui"
+	location "Pondo/vendor/imgui"
+	kind "StaticLib"
+	language "C++"
+	staticruntime "On"
+
+	targetdir ("%{wks.location}/bin/" .. outputdir .. "/%{prj.name}")
+	objdir    ("%{wks.location}/bin-int/" .. outputdir .. "/%{prj.name}")
+
+	files {
+		"Pondo/vendor/imgui/imgui.cpp",
+		"Pondo/vendor/imgui/imgui_draw.cpp",
+		"Pondo/vendor/imgui/imgui_tables.cpp",
+		"Pondo/vendor/imgui/imgui_widgets.cpp",
+		"Pondo/vendor/imgui/imgui_demo.cpp",
+		"Pondo/vendor/imgui/imgui_impl_glfw.cpp",
+		"Pondo/vendor/imgui/imgui_impl_opengl3.cpp"
+	}
+
+	includedirs {
+		"Pondo/vendor/imgui",
+		"Pondo/vendor/GLFW/include",
+		"Pondo/vendor/glad/include"
+	}
+
+	filter "configurations:Debug"
+		runtime "Debug"
+		symbols "on"
+
+	filter "configurations:Release"
+		runtime "Release"
+		optimize "on"
 
 project "Pondo"
 	location "Pondo"
@@ -20,9 +78,8 @@ project "Pondo"
 	language "C++"
 
 	targetdir ("%{wks.location}/bin/" .. outputdir .. "/%{prj.name}")
-	objdir ("%{wks.location}/bin-int/" .. outputdir .. "/%{prj.name}")
+	objdir    ("%{wks.location}/bin-int/" .. outputdir .. "/%{prj.name}")
 
-	-- Everything in the src folder
 	files {
 		"%{prj.name}/src/**.h",
 		"%{prj.name}/src/**.cpp"
@@ -31,11 +88,16 @@ project "Pondo"
 	includedirs {
 		"%{prj.name}/src",
 		"%{prj.name}/vendor/spdlog/include",
-		"%{IncludeDir.GLFW}"
+		"%{IncludeDir.GLFW}",
+		"%{IncludeDir.glad}",
+		"%{IncludeDir.glm}",
+		"%{IncludeDir.ImGui}"
 	}
 
 	links {
 		"GLFW",
+		"glad",
+		"ImGui",
 		"opengl32.lib"
 	}
 
@@ -49,11 +111,10 @@ project "Pondo"
 			"PD_BUILD_DLL"
 		}
 
-		-- PUt DLL in the same folder as the executable
 		postbuildcommands {
 			"{COPYFILE} %{cfg.buildtarget.relpath} ../bin/" .. outputdir .. "/Sandbox"
 		}
-	
+
 	filter "configurations:Debug"
 		defines "PD_DEBUG"
 		symbols "On"
@@ -75,9 +136,8 @@ project "Sandbox"
 	language "C++"
 
 	targetdir ("%{wks.location}/bin/" .. outputdir .. "/%{prj.name}")
-	objdir ("%{wks.location}/bin-int/" .. outputdir .. "/%{prj.name}")
+	objdir    ("%{wks.location}/bin-int/" .. outputdir .. "/%{prj.name}")
 
-	-- Everything in the src folder
 	files {
 		"%{prj.name}/src/**.h",
 		"%{prj.name}/src/**.cpp"
@@ -85,11 +145,19 @@ project "Sandbox"
 
 	includedirs {
 		"Pondo/vendor/spdlog/include",
-		"Pondo/src"
+		"Pondo/src",
+		"%{IncludeDir.GLFW}",
+		"%{IncludeDir.glad}",
+		"%{IncludeDir.glm}",
+		"%{IncludeDir.ImGui}"
 	}
 
 	links {
-		"Pondo"
+		"Pondo",
+		"GLFW",
+		"glad",
+		"ImGui",
+		"opengl32.lib"
 	}
 
 	filter "system:windows"
@@ -100,7 +168,7 @@ project "Sandbox"
 		defines {
 			"PD_PLATFORM_WINDOWS"
 		}
-	
+
 	filter "configurations:Debug"
 		defines "PD_DEBUG"
 		symbols "On"

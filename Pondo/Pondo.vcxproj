@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
@@ -55,22 +55,22 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <OutDir>$(ProjectDir)..\bin\-windows-x86_64\Pondo\</OutDir>
-    <IntDir>$(ProjectDir)..\bin-int\-windows-x86_64\Pondo\Debug\</IntDir>
+    <OutDir>$(ProjectDir)..\bin\Debug-windows-x86_64\Pondo\</OutDir>
+    <IntDir>$(ProjectDir)..\bin-int\Debug-windows-x86_64\Pondo\</IntDir>
     <TargetName>Pondo</TargetName>
     <TargetExt>.dll</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>$(ProjectDir)..\bin\-windows-x86_64\Pondo\</OutDir>
-    <IntDir>$(ProjectDir)..\bin-int\-windows-x86_64\Pondo\Release\</IntDir>
+    <OutDir>$(ProjectDir)..\bin\Release-windows-x86_64\Pondo\</OutDir>
+    <IntDir>$(ProjectDir)..\bin-int\Release-windows-x86_64\Pondo\</IntDir>
     <TargetName>Pondo</TargetName>
     <TargetExt>.dll</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Dist|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>$(ProjectDir)..\bin\-windows-x86_64\Pondo\</OutDir>
-    <IntDir>$(ProjectDir)..\bin-int\-windows-x86_64\Pondo\Dist\</IntDir>
+    <OutDir>$(ProjectDir)..\bin\Dist-windows-x86_64\Pondo\</OutDir>
+    <IntDir>$(ProjectDir)..\bin-int\Dist-windows-x86_64\Pondo\</IntDir>
     <TargetName>Pondo</TargetName>
     <TargetExt>.dll</TargetExt>
   </PropertyGroup>
@@ -79,10 +79,10 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>PD_PLATFORM_WINDOWS;PD_BUILD_DLL;PD_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>vendor\spdlog\include;vendor\GLFW\include;vendor\glad\include;vendor\glm;vendor\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>src;vendor\spdlog\include;vendor\GLFW\include;vendor\glad\include;vendor\glm;vendor\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp23</LanguageStandard>
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
@@ -90,14 +90,13 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <ImportLibrary>..\bin\-windows-x86_64\Pondo\Pondo.lib</ImportLibrary>
-      <AdditionalLibraryDirectories>vendor\GLFW\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>glfw3.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ImportLibrary>..\bin\Debug-windows-x86_64\Pondo\Pondo.lib</ImportLibrary>
     </Link>
     <ProjectReference>
     </ProjectReference>
     <PostBuildEvent>
-      <Command>copy /B /Y ..\bin\-windows-x86_64\Pondo\Pondo.dll ..\bin\-windows-x86_64\Sandbox</Command>
+      <Command>copy /B /Y ..\bin\Debug-windows-x86_64\Pondo\Pondo.dll ..\bin\Debug-windows-x86_64\Sandbox</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -105,13 +104,13 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>PD_PLATFORM_WINDOWS;PD_BUILD_DLL;PD_RELEASE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>vendor\spdlog\include;vendor\GLFW\include;vendor\glad\include;vendor\glm;vendor\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>src;vendor\spdlog\include;vendor\GLFW\include;vendor\glad\include;vendor\glm;vendor\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <MinimalRebuild>false</MinimalRebuild>
       <StringPooling>true</StringPooling>
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp23</LanguageStandard>
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
@@ -120,12 +119,13 @@
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <ImportLibrary>..\bin\-windows-x86_64\Pondo\Pondo.lib</ImportLibrary>
+      <AdditionalDependencies>opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ImportLibrary>..\bin\Release-windows-x86_64\Pondo\Pondo.lib</ImportLibrary>
     </Link>
     <ProjectReference>
     </ProjectReference>
     <PostBuildEvent>
-      <Command>copy /B /Y ..\bin\-windows-x86_64\Pondo\Pondo.dll ..\bin\-windows-x86_64\Sandbox</Command>
+      <Command>copy /B /Y ..\bin\Release-windows-x86_64\Pondo\Pondo.dll ..\bin\Release-windows-x86_64\Sandbox</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Dist|x64'">
@@ -133,13 +133,13 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>PD_PLATFORM_WINDOWS;PD_BUILD_DLL;PD_DIST;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>vendor\spdlog\include;vendor\GLFW\include;vendor\glad\include;vendor\glm;vendor\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>src;vendor\spdlog\include;vendor\GLFW\include;vendor\glad\include;vendor\glm;vendor\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <MinimalRebuild>false</MinimalRebuild>
       <StringPooling>true</StringPooling>
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp23</LanguageStandard>
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
@@ -148,12 +148,13 @@
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <ImportLibrary>..\bin\-windows-x86_64\Pondo\Pondo.lib</ImportLibrary>
+      <AdditionalDependencies>opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ImportLibrary>..\bin\Dist-windows-x86_64\Pondo\Pondo.lib</ImportLibrary>
     </Link>
     <ProjectReference>
     </ProjectReference>
     <PostBuildEvent>
-      <Command>copy /B /Y ..\bin\-windows-x86_64\Pondo\Pondo.dll ..\bin\-windows-x86_64\Sandbox</Command>
+      <Command>copy /B /Y ..\bin\Dist-windows-x86_64\Pondo\Pondo.dll ..\bin\Dist-windows-x86_64\Sandbox</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -165,58 +166,54 @@
     <ClInclude Include="src\Pondo\Events\Event.h" />
     <ClInclude Include="src\Pondo\Events\KeyEvents.h" />
     <ClInclude Include="src\Pondo\Events\MouseEvents.h" />
+    <ClInclude Include="src\Pondo\ImGui\ImGuiLayer.h" />
+    <ClInclude Include="src\Pondo\Input.h" />
     <ClInclude Include="src\Pondo\Layer.h" />
     <ClInclude Include="src\Pondo\LayerStack.h" />
     <ClInclude Include="src\Pondo\Log.h" />
-    <ClInclude Include="src\Pondo\Timestep.h" />
-    <ClInclude Include="src\Pondo\Window.h" />
-    <ClInclude Include="vendor\glad\include\glad\glad.h" />
     <ClInclude Include="src\Pondo\Renderer\Buffer.h" />
-    <ClInclude Include="src\Pondo\Renderer\Renderer.h" />
-    <ClInclude Include="src\Pondo\Renderer\Shader.h" />
-    <ClInclude Include="src\Pondo\Renderer\VertexArray.h" />
     <ClInclude Include="src\Pondo\Renderer\Camera.h" />
-    <ClInclude Include="vendor\imgui\imgui.h" />
-    <ClInclude Include="vendor\imgui\imgui_internal.h" />
-    <ClInclude Include="vendor\imgui\imgui_impl_glfw.h" />
-    <ClInclude Include="vendor\imgui\imgui_impl_opengl3.h" />
-    <ClInclude Include="src\Pondo\ImGui\ImGuiLayer.h" />
     <ClInclude Include="src\Pondo\Renderer\Framebuffer.h" />
     <ClInclude Include="src\Pondo\Renderer\Material.h" />
     <ClInclude Include="src\Pondo\Renderer\Mesh.h" />
+    <ClInclude Include="src\Pondo\Renderer\Renderer.h" />
+    <ClInclude Include="src\Pondo\Renderer\Shader.h" />
+    <ClInclude Include="src\Pondo\Renderer\VertexArray.h" />
     <ClInclude Include="src\Pondo\Scene\Components.h" />
     <ClInclude Include="src\Pondo\Scene\Entity.h" />
     <ClInclude Include="src\Pondo\Scene\Scene.h" />
+    <ClInclude Include="src\Pondo\Timestep.h" />
+    <ClInclude Include="src\Pondo\Window.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Pondo\Application.cpp" />
-    <ClCompile Include="src\Pondo\Log.cpp" />
+    <ClCompile Include="src\Pondo\ImGui\ImGuiLayer.cpp" />
+    <ClCompile Include="src\Pondo\Input.cpp" />
     <ClCompile Include="src\Pondo\Layer.cpp" />
     <ClCompile Include="src\Pondo\LayerStack.cpp" />
-    <ClCompile Include="src\Pondo\Window.cpp" />
-    <ClCompile Include="src\Pondo\Input.cpp" />
-    <ClCompile Include="src\Pondo\Input.h" />
+    <ClCompile Include="src\Pondo\Log.cpp" />
     <ClCompile Include="src\Pondo\Renderer\Buffer.cpp" />
-    <ClCompile Include="src\Pondo\Renderer\Renderer.cpp" />
-    <ClCompile Include="src\Pondo\Renderer\Shader.cpp" />
-    <ClCompile Include="src\Pondo\Renderer\VertexArray.cpp" />
     <ClCompile Include="src\Pondo\Renderer\Camera.cpp" />
-    <ClCompile Include="vendor\imgui\imgui.cpp" />
-    <ClCompile Include="vendor\imgui\imgui_demo.cpp" />
-    <ClCompile Include="vendor\imgui\imgui_draw.cpp" />
-    <ClCompile Include="vendor\imgui\imgui_tables.cpp" />
-    <ClCompile Include="vendor\imgui\imgui_widgets.cpp" />
-    <ClCompile Include="vendor\imgui\imgui_impl_glfw.cpp" />
-    <ClCompile Include="vendor\imgui\imgui_impl_opengl3.cpp" />
-    <ClCompile Include="src\Pondo\ImGui\ImGuiLayer.cpp" />
     <ClCompile Include="src\Pondo\Renderer\Framebuffer.cpp" />
     <ClCompile Include="src\Pondo\Renderer\Material.cpp" />
     <ClCompile Include="src\Pondo\Renderer\Mesh.cpp" />
+    <ClCompile Include="src\Pondo\Renderer\Renderer.cpp" />
+    <ClCompile Include="src\Pondo\Renderer\Shader.cpp" />
+    <ClCompile Include="src\Pondo\Renderer\VertexArray.cpp" />
     <ClCompile Include="src\Pondo\Scene\Entity.cpp" />
     <ClCompile Include="src\Pondo\Scene\Scene.cpp" />
-    <ClCompile Include="vendor\glad\src\glad.c">
-      <CompileAs>CompileAsC</CompileAs>
-    </ClCompile>
+    <ClCompile Include="src\Pondo\Window.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="vendor\GLFW\GLFW.vcxproj">
+      <Project>{154B857C-0182-860D-AA6E-6C109684020F}</Project>
+    </ProjectReference>
+    <ProjectReference Include="vendor\glad\glad.vcxproj">
+      <Project>{DD62977C-C999-980D-7286-7E105E9C140F}</Project>
+    </ProjectReference>
+    <ProjectReference Include="vendor\imgui\ImGui.vcxproj">
+      <Project>{C0FF640D-2C14-8DBE-F595-301E616989EF}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

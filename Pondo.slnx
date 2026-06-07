@@ -5,7 +5,11 @@
     <BuildType Name="Release" />
     <Platform Name="x64" />
   </Configurations>
+  <Project Path="Pondo\vendor\glad\glad.vcxproj" Id="DD62977C-C999-980D-7286-7E105E9C140F">
+  </Project>
   <Project Path="Pondo\vendor\GLFW\GLFW.vcxproj" Id="154B857C-0182-860D-AA6E-6C109684020F">
+  </Project>
+  <Project Path="Pondo\vendor\imgui\ImGui.vcxproj" Id="C0FF640D-2C14-8DBE-F595-301E616989EF">
   </Project>
   <Project Path="Pondo\Pondo.vcxproj" Id="C567E50D-317C-0DBF-FAFD-B01E66D109F0">
   </Project>
