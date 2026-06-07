@@ -24,6 +24,13 @@ namespace Pondo {
 
 		static Application& Get() { return *s_Instance; }
 		static void* GetProcAddress(const char* name);
+		static void InitGlad();
+		static void GL_Enable(unsigned int cap);
+		static void GL_Disable(unsigned int cap);
+		static void GL_LineWidth(float width);
+		static void GL_PolygonMode(unsigned int face, unsigned int mode);
+		static void GL_DrawArrays(unsigned int mode, int first, int count);
+		static void GL_DrawElements(unsigned int mode, int count, unsigned int type, const void* indices);
 
 	private:
 		bool OnWindowClose(WindowCloseEvent& e);
