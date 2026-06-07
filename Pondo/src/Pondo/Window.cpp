@@ -2,6 +2,7 @@
 #include "Events/ApplicationEvents.h"
 #include "Events/KeyEvents.h"
 #include "Events/MouseEvents.h"
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
 namespace Pondo {
@@ -27,6 +28,9 @@ namespace Pondo {
 
         glfwMakeContextCurrent(m_Window);
 
+        int status = gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+        PD_CORE_ASSERT(status, "Failed to initialize glad!");
+
         m_Data.Title = m_Config.Title;
         m_Data.Width = m_Config.Width;
         m_Data.Height = m_Config.Height;
@@ -45,6 +49,7 @@ namespace Pondo {
             auto& data = *(WindowData*)glfwGetWindowUserPointer(w);
             data.Width = width;
             data.Height = height;
+            glViewport(0, 0, width, height);
             WindowResizeEvent event(width, height);
             data.EventCallback(event);
             });
