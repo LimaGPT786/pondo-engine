@@ -16,11 +16,11 @@ namespace Pondo {
 
     enum EventCategory {
         None = 0,
-        EventCategoryApplication = BIT(0),      // 0001
-        EventCategoryInput = BIT(1),            // 0010
-        EventCategoryKeyboard = BIT(2),         //0100
-        EventCategoryMouse = BIT(3),            // 1000
-        EventCategoryMouseButton = BIT(4)       // etc...
+        EventCategoryApplication = BIT(0),
+        EventCategoryInput = BIT(1),
+        EventCategoryKeyboard = BIT(2),
+        EventCategoryMouse = BIT(3),
+        EventCategoryMouseButton = BIT(4)
     };
 
 #define EVENT_CLASS_TYPE(type) \
