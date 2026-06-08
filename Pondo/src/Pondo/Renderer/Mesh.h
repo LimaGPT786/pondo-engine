@@ -28,6 +28,7 @@ namespace Pondo {
 		static std::shared_ptr<Mesh> CreateCube();
 		static std::shared_ptr<Mesh> CreatePlane(float size = 1.0f);
 		static std::shared_ptr<Mesh> CreateSphere(int stacks = 16, int slices = 16);
+		static std::shared_ptr<Mesh> CreateCylinder(float radius = 0.5f, float height = 1.0f, int segments = 32);
 
 	private:
 		unsigned int m_VAO_ID = 0;

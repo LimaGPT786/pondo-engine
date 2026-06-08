@@ -139,4 +139,141 @@ namespace Pondo {
 		return std::make_shared<Mesh>(verts, idx);
 	}
 
+	std::shared_ptr<Mesh> Mesh::CreateCylinder(
+		float radius,
+		float height,
+		int segments)
+	{
+		std::vector<Vertex> verts;
+		std::vector<unsigned int> idx;
+
+		float half = height * 0.5f;
+
+		// side vertices
+		for (int i = 0; i <= segments; i++)
+		{
+			float t =
+				((float)i / (float)segments)
+				* glm::two_pi<float>();
+
+			float x = cos(t) * radius;
+			float z = sin(t) * radius;
+
+			glm::vec3 normal =
+				glm::normalize(
+					glm::vec3(x, 0, z)
+				);
+
+			verts.push_back({
+				{x,-half,z},
+				normal,
+				{(float)i / segments,0}
+				});
+
+			verts.push_back({
+				{x,half,z},
+				normal,
+				{(float)i / segments,1}
+				});
+		}
+
+		// side indices
+		for (unsigned int i = 0; i < (unsigned int)segments; i++)
+		{
+			unsigned int b = i * 2;
+
+			idx.insert(
+				idx.end(),
+				{
+					b,
+					b + 1,
+					b + 2,
+
+					b + 1,
+					b + 3,
+					b + 2
+				}
+			);
+		}
+
+		// top center
+		unsigned int topCenter =
+			(unsigned int)verts.size();
+
+		verts.push_back({
+			{0,half,0},
+			{0,1,0},
+			{0.5f,0.5f}
+			});
+
+		// bottom center
+		unsigned int bottomCenter =
+			(unsigned int)verts.size();
+
+		verts.push_back({
+			{0,-half,0},
+			{0,-1,0},
+			{0.5f,0.5f}
+			});
+
+		unsigned int ringStart =
+			(unsigned int)verts.size();
+
+		for (int i = 0; i < segments; i++)
+		{
+			float t =
+				((float)i / segments)
+				* glm::two_pi<float>();
+
+			float x =
+				cos(t) * radius;
+
+			float z =
+				sin(t) * radius;
+
+			verts.push_back({
+				{x,half,z},
+				{0,1,0},
+				{0,0}
+				});
+
+			verts.push_back({
+				{x,-half,z},
+				{0,-1,0},
+				{0,0}
+				});
+		}
+
+		// caps
+		for (unsigned int i = 0; i < (unsigned int)segments; i++)
+		{
+			unsigned int next =
+				(i + 1)
+				%
+				(unsigned int)segments;
+
+			idx.insert(
+				idx.end(),
+				{
+					topCenter,
+					ringStart + i * 2,
+					ringStart + next * 2
+				}
+			);
+
+			idx.insert(
+				idx.end(),
+				{
+					bottomCenter,
+					ringStart + next * 2 + 1,
+					ringStart + i * 2 + 1
+				}
+			);
+		}
+
+		return std::make_shared<Mesh>(
+			verts,
+			idx
+		);
+	}
 }

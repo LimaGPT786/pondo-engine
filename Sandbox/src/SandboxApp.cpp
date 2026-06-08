@@ -234,11 +234,52 @@ struct ArrowGizmo {
 
 class SceneLayer : public Pondo::Layer {
 public:
-    SceneLayer() : Layer("SceneLayer") {}
+    SceneLayer()
+        : Layer("SceneLayer")
+    {
+    }
 
-    void SetFramebuffer(std::shared_ptr<Pondo::Framebuffer> fb) { m_Framebuffer = fb; }
-    void SetViewportFocused(bool v) { m_ViewportFocused = v; }
-    void SetViewportRect(float x, float y, float w, float h) { m_VpPos = { x,y }; m_VpSize = { w,h }; }
+    void SetFramebuffer(
+        std::shared_ptr<Pondo::Framebuffer> fb
+    )
+    {
+        m_Framebuffer = fb;
+    }
+
+    void SetViewportFocused(bool v)
+    {
+        m_ViewportFocused = v;
+    }
+
+    void SetViewportRect(
+        float x,
+        float y,
+        float w,
+        float h
+    )
+    {
+        m_VpPos = { x, y };
+        m_VpSize = { w, h };
+    }
+
+    void SetSnapSettings(
+        bool enabled,
+        float move,
+        float rotate,
+        float scale
+    )
+    {
+        m_EnableSnapping = enabled;
+        m_MoveIncrement = move;
+        m_RotateIncrement = rotate;
+        m_ScaleIncrement = scale;
+    }
+
+    bool m_EnableSnapping = false;
+
+    float m_MoveIncrement = 0.5f;
+    float m_RotateIncrement = 15.0f;
+    float m_ScaleIncrement = 0.1f;
 
     Pondo::Scene* GetScene() { return m_Scene.get(); }
     Pondo::Entity* GetSelectedEntity() { return m_SelectedEntity; }
@@ -489,7 +530,14 @@ public:
             tf.Rotation;
     }
 
-    void UpdateGizmoDrag(glm::vec2 px)
+    void UpdateGizmoDrag(
+        glm::vec2 px,
+        bool enableSnap,
+        float moveIncrement,
+        float rotateIncrement,
+        float scaleIncrement
+    )
+
     {
         if (
             m_DragAxis < 0 ||
@@ -497,7 +545,7 @@ public:
             )
             return;
 
-        auto& tf =
+        auto& transform =
             m_SelectedEntity
             ->GetTransform();
 
@@ -511,141 +559,193 @@ public:
         glm::vec3 axis =
             axes[m_DragAxis];
 
-        //-------------------------------------------------
-        // MOVE
-        //-------------------------------------------------
+        glm::vec2 p0 =
+            WorldToScreen(
+                m_DragStartPos,
+                m_Camera->GetViewProjection(),
+                m_VpPos,
+                m_VpSize
+            );
 
-        if (m_GizmoMode == 0)
+        glm::vec2 p1 =
+            WorldToScreen(
+                m_DragStartPos + axis,
+                m_Camera->GetViewProjection(),
+                m_VpPos,
+                m_VpSize
+            );
+
+        glm::vec2 dir =
+            p1 - p0;
+
+        float len =
+            glm::length(dir);
+
+        if (len < 1.0f)
+            return;
+
+        dir /= len;
+
+        float dragAmount =
+            glm::dot(
+                px - m_DragStartPx,
+                dir
+            )
+            * 0.01f;
+
+        switch (m_GizmoMode)
         {
-            glm::vec2 p0 =
-                WorldToScreen(
-                    m_DragStartPos,
-                    m_Camera->GetViewProjection(),
-                    m_VpPos,
-                    m_VpSize
-                );
+        case 0:
+        {
+            if (
+                enableSnap &&
+                moveIncrement > 0.0f
+                )
+            {
+                dragAmount =
+                    round(
+                        dragAmount
+                        /
+                        moveIncrement
+                    )
+                    *
+                    moveIncrement;
+            }
 
-            glm::vec2 p1 =
-                WorldToScreen(
-                    m_DragStartPos + axis,
-                    m_Camera->GetViewProjection(),
-                    m_VpPos,
-                    m_VpSize
-                );
+            transform.Position =
+                m_DragStartPos
+                +
+                axis
+                *
+                dragAmount;
 
-            glm::vec2 dir =
-                p1 - p0;
-
-            float len =
-                glm::length(dir);
-
-            if (len < 5)
-                return;
-
-            dir /= len;
-
-            float amount =
-                glm::dot(
-                    px -
-                    m_DragStartPx,
-                    dir
-                ) * 0.01f;
-
-            tf.Position =
-                m_DragStartPos +
-                axis *
-                amount;
+            break;
         }
 
-        //-------------------------------------------------
-        // ROTATE (screen drag)
-        //-------------------------------------------------
-
-        else if (m_GizmoMode == 1)
+        case 1:
         {
-            glm::vec2 delta =
-                px -
-                m_DragStartPx;
+            float rotation =
+                dragAmount
+                *
+                100.0f;
 
-            float amount =
-                (
-                    delta.x
-                    -
-                    delta.y
-                    ) * 0.45f;
+            if (
+                enableSnap &&
+                rotateIncrement > 0.0f
+                )
+            {
+                rotation =
+                    round(
+                        rotation
+                        /
+                        rotateIncrement
+                    )
+                    *
+                    rotateIncrement;
+            }
 
-            tf.Rotation =
-                m_DragStartRot;
+            transform.Rotation[m_DragAxis] =
+                m_DragStartRot[m_DragAxis]
+                +
+                rotation;
 
-            tf.Rotation[m_DragAxis]
-                += amount;
+            break;
         }
 
-        //-------------------------------------------------
-        // SCALE
-        //-------------------------------------------------
-
-        else
+        case 2:
         {
-            glm::vec2 p0 =
-                WorldToScreen(
-                    m_DragStartPos,
-                    m_Camera->GetViewProjection(),
-                    m_VpPos,
-                    m_VpSize
-                );
+            if (
+                enableSnap &&
+                scaleIncrement > 0.0f
+                )
+            {
+                dragAmount =
+                    round(
+                        dragAmount
+                        /
+                        scaleIncrement
+                    )
+                    *
+                    scaleIncrement;
+            }
 
-            glm::vec2 p1 =
-                WorldToScreen(
-                    m_DragStartPos + axis,
-                    m_Camera->GetViewProjection(),
-                    m_VpPos,
-                    m_VpSize
-                );
-
-            glm::vec2 dir =
-                p1 - p0;
-
-            float len =
-                glm::length(dir);
-
-            if (len < 5)
-                return;
-
-            dir /= len;
-
-            float amount =
-                glm::dot(
-                    px -
-                    m_DragStartPx,
-                    dir
-                ) * 0.01f;
-
-            tf.Scale =
-                m_DragStartScale;
-
-            tf.Scale[m_DragAxis] =
+            transform.Scale[m_DragAxis] =
                 std::max(
-                    0.05f,
+                    0.001f,
                     m_DragStartScale[m_DragAxis]
                     +
-                    amount
+                    dragAmount
                 );
+
+            break;
+        }
         }
     }
 
     void EndGizmoDrag() { m_DragAxis = -1; }
     bool IsDraggingGizmo() const { return m_DragAxis >= 0; }
 
-    Pondo::Entity* SpawnEntity(const std::string& name,
-        std::shared_ptr<Pondo::Mesh> mesh, glm::vec4 color,
-        glm::vec3 pos = { 0,0.5f,0 })
+    Pondo::Entity* DuplicateEntity(
+        Pondo::Entity* src
+    )
+    {
+        if (!src)
+            return nullptr;
+
+        glm::vec4 color =
+        {
+            1,1,1,1
+        };
+
+        if (
+            src->GetMaterial() &&
+            src->GetMaterial()->Mat
+            )
+        {
+            color =
+                src
+                ->GetMaterial()
+                ->Mat
+                ->GetColor();
+        }
+
+        auto* copy =
+            SpawnEntity(
+                src->GetTag() + "_Copy",
+                src->GetMesh()->MeshData,
+                color,
+                src->GetTransform().Position
+            );
+
+        copy->GetTransform() =
+            src->GetTransform();
+
+        return copy;
+    }
+
+    Pondo::Entity* SpawnEntity(
+        const std::string& name,
+        std::shared_ptr<Pondo::Mesh> mesh,
+        glm::vec4 color,
+        glm::vec3 pos = { 0,0.5f,0 }
+    )
     {
         auto* e = m_Scene->CreateEntity(name);
+
         e->GetTransform().Position = pos;
-        e->SetMesh(std::move(mesh));
-        e->SetMaterial(std::make_shared<Pondo::Material>(m_Shader));
-        e->GetMaterial()->Mat->SetColor(color);
+
+        e->SetMesh(mesh);
+
+        e->SetMaterial(
+            std::make_shared<Pondo::Material>(
+                m_Shader
+            )
+        );
+
+        e->GetMaterial()
+            ->Mat
+            ->SetColor(color);
+
         return e;
     }
 
@@ -1160,6 +1260,7 @@ public:
             });
     }
 
+
     void OnRender() override {
         int w = Pondo::Application::Get().GetWindow().GetWidth();
         int h = Pondo::Application::Get().GetWindow().GetHeight();
@@ -1212,6 +1313,7 @@ public:
                 if (ImGui::MenuItem("Cube"))   CreateEntity(0);
                 if (ImGui::MenuItem("Sphere")) CreateEntity(1);
                 if (ImGui::MenuItem("Plane"))  CreateEntity(2);
+                if (ImGui::MenuItem("Cylinder")) CreateEntity(3);
                 ImGui::EndMenu();
             }
             ImGui::EndMenuBar();
@@ -1245,11 +1347,13 @@ public:
                 ImGui::PopID();
             }
             ImGui::Separator();
-            if (ImGui::Button("+ Cube"))   CreateEntity(0);
+            if (ImGui::Button("+ Cube")) CreateEntity(0);
             ImGui::SameLine();
             if (ImGui::Button("+ Sphere")) CreateEntity(1);
             ImGui::SameLine();
-            if (ImGui::Button("+ Plane"))  CreateEntity(2);
+            if (ImGui::Button("+ Plane")) CreateEntity(2);
+            if (ImGui::Button("+ Cylinder")) CreateEntity(3);
+
             if (m_SceneLayer->GetSelectedEntity()) {
                 ImGui::Spacing();
                 ImGui::PushStyleColor(ImGuiCol_Button, { 0.65f,0.15f,0.15f,1 });
@@ -1291,14 +1395,119 @@ public:
                     char buf[128]; strncpy_s(buf, sel->GetTag().c_str(), sizeof(buf));
                     if (ImGui::InputText("Name", buf, sizeof(buf))) sel->SetTag(buf);
                     ImGui::Separator();
+                    ImGui::Text("Transform Controls");
+
+                    ImGui::Separator();
+
+                    ImGui::Checkbox("Enable Increment Snap", &m_EnableSnapping);
+
+                    ImGui::InputFloat(
+                        "Move Step",
+                        &m_MoveIncrement,
+                        0.0f,
+                        0.0f,
+                        "%.3f"
+                    );
+
+                    ImGui::InputFloat(
+                        "Rotate Step",
+                        &m_RotateIncrement,
+                        0.0f,
+                        0.0f,
+                        "%.2f"
+                    );
+
+                    ImGui::InputFloat(
+                        "Scale Step",
+                        &m_ScaleIncrement,
+                        0.0f,
+                        0.0f,
+                        "%.3f"
+                    );
+
+                    // prevent invalid values
+                    m_MoveIncrement =
+                        std::max(0.001f, m_MoveIncrement);
+
+                    m_RotateIncrement =
+                        std::max(0.01f, m_RotateIncrement);
+
+                    m_ScaleIncrement =
+                        std::max(0.001f, m_ScaleIncrement);
+
+                    ImGui::Separator();
+
+
                     ImGui::Text("Transform");
+
                     auto& tf = sel->GetTransform();
-                    float pos[3] = { tf.Position.x, tf.Position.y, tf.Position.z };
-                    if (ImGui::DragFloat3("Position", pos, 0.05f)) tf.Position = { pos[0],pos[1],pos[2] };
-                    float rot[3] = { tf.Rotation.x, tf.Rotation.y, tf.Rotation.z };
-                    if (ImGui::DragFloat3("Rotation", rot, 1.0f))  tf.Rotation = { rot[0],rot[1],rot[2] };
-                    float scl[3] = { tf.Scale.x, tf.Scale.y, tf.Scale.z };
-                    if (ImGui::DragFloat3("Scale", scl, 0.05f, 0.001f, 1000.0f)) tf.Scale = { scl[0],scl[1],scl[2] };
+
+                    float pos[3] =
+                    {
+                        tf.Position.x,
+                        tf.Position.y,
+                        tf.Position.z
+                    };
+
+                    if (ImGui::InputFloat3(
+                        "Position",
+                        pos,
+                        "%.3f"
+                    ))
+                    {
+                        tf.Position =
+                        {
+                            pos[0],
+                            pos[1],
+                            pos[2]
+                        };
+                    }
+
+                    float rot[3] =
+                    {
+                        tf.Rotation.x,
+                        tf.Rotation.y,
+                        tf.Rotation.z
+                    };
+
+                    if (ImGui::InputFloat3(
+                        "Rotation",
+                        rot,
+                        "%.2f"
+                    ))
+                    {
+                        tf.Rotation =
+                        {
+                            rot[0],
+                            rot[1],
+                            rot[2]
+                        };
+                    }
+
+                    float scl[3] =
+                    {
+                        tf.Scale.x,
+                        tf.Scale.y,
+                        tf.Scale.z
+                    };
+
+                    if (ImGui::InputFloat3(
+                        "Scale",
+                        scl,
+                        "%.3f"
+                    ))
+                    {
+                        scl[0] = std::max(0.001f, scl[0]);
+                        scl[1] = std::max(0.001f, scl[1]);
+                        scl[2] = std::max(0.001f, scl[2]);
+
+                        tf.Scale =
+                        {
+                            scl[0],
+                            scl[1],
+                            scl[2]
+                        };
+                    }
                     if (auto* mc = sel->GetMaterial(); mc && mc->Mat) {
                         ImGui::Separator(); ImGui::Text("Material");
                         glm::vec4 col = mc->Mat->GetColor();
@@ -1399,13 +1608,38 @@ public:
                 !dragging
             );
 
+            // Ctrl+B → Duplicate selected entity
+            if (
+                overViewport &&
+                io.KeyCtrl &&
+                ImGui::IsKeyPressed(ImGuiKey_B, false)
+                )
+            {
+                Pondo::Entity* copy =
+                    m_SceneLayer->DuplicateEntity(
+                        m_SceneLayer->GetSelectedEntity()
+                    );
+
+                if (copy)
+                {
+                    m_SceneLayer
+                        ->SetSelectedEntity(
+                            copy
+                        );
+                }
+            }
+
             // update active drag
             if (dragging)
             {
                 if (lmbDown)
                 {
                     m_SceneLayer->UpdateGizmoDrag(
-                        mouse
+                        mouse,
+                        m_EnableSnapping,
+                        m_MoveIncrement,
+                        m_RotateIncrement,
+                        m_ScaleIncrement
                     );
                 }
                 else
@@ -1452,19 +1686,59 @@ public:
     }
 
 private:
-    void CreateEntity(int meshType) {
+    void CreateEntity(int meshType)
+    {
         static int count = 0;
-        const char* names[] = { "Cube","Sphere","Plane" };
-        glm::vec4   colors[] = { {0.8f,0.35f,0.2f,1},{0.2f,0.55f,0.85f,1},{0.55f,0.55f,0.55f,1} };
+
+        const char* names[] =
+        {
+            "Cube",
+            "Sphere",
+            "Plane",
+            "Cylinder"
+        };
+
+        glm::vec4 colors[] =
+        {
+            {0.8f,0.35f,0.2f,1},
+            {0.2f,0.55f,0.85f,1},
+            {0.55f,0.55f,0.55f,1},
+            {0.75f,0.65f,0.25f,1}
+        };
+
         std::shared_ptr<Pondo::Mesh> mesh;
-        switch (meshType) {
-        case 1:  mesh = Pondo::Mesh::CreateSphere();    break;
-        case 2:  mesh = Pondo::Mesh::CreatePlane(1.0f); break;
-        default: mesh = Pondo::Mesh::CreateCube();
+
+        switch (meshType)
+        {
+        case 1:
+            mesh =
+                Pondo::Mesh::CreateSphere();
+            break;
+
+        case 2:
+            mesh =
+                Pondo::Mesh::CreatePlane(1.0f);
+            break;
+
+        case 3:
+            mesh =
+                Pondo::Mesh::CreateCylinder();
+            break;
+
+        default:
+            mesh =
+                Pondo::Mesh::CreateCube();
         }
-        auto* e = m_SceneLayer->SpawnEntity(
-            std::string(names[meshType]) + std::to_string(++count),
-            std::move(mesh), colors[meshType], { 0,0.5f,0 });
+
+        auto* e =
+            m_SceneLayer->SpawnEntity(
+                std::string(names[meshType]) +
+                std::to_string(++count),
+                std::move(mesh),
+                colors[meshType],
+                { 0,0.5f,0 }
+            );
+
         m_SceneLayer->SetSelectedEntity(e);
     }
 
@@ -1473,6 +1747,11 @@ private:
     SceneLayer* m_SceneLayer = nullptr;
     float                               m_LastTime = 0.0f;
     bool m_ShowScene = true, m_ShowProps = true, m_ShowStats = true;
+    bool m_EnableSnapping = false;
+
+    float m_MoveIncrement = 0.5f;
+    float m_RotateIncrement = 15.0f;
+    float m_ScaleIncrement = 0.1f;
 };
 
 // -------------------------------------------------------
