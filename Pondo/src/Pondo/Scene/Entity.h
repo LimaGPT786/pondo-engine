@@ -13,38 +13,27 @@ namespace Pondo {
     class PONDO_API Entity {
     public:
         Entity() = default;
-        Entity(const std::string& name)
-            : m_ID(s_NextID++), m_Tag(name) {
-        }
+        Entity(const std::string& name);
 
         Entity(const Entity&) = delete;
         Entity& operator=(const Entity&) = delete;
         Entity(Entity&&) = default;
         Entity& operator=(Entity&&) = default;
 
-        uint32_t           GetID()  const { return m_ID; }
-        const std::string& GetTag() const { return m_Tag.Tag; }
-        void               SetTag(const std::string& tag) { m_Tag.Tag = tag; }
+        uint32_t           GetID()  const;
+        const std::string& GetTag() const;
+        void               SetTag(const std::string& tag);
 
-        TransformComponent& GetTransform() { return m_Transform; }
-        const TransformComponent& GetTransform() const { return m_Transform; }
+        TransformComponent& GetTransform();
+        const TransformComponent& GetTransform() const;
 
-        // Returns nullptr if no mesh has been set
-        MeshComponent* GetMesh() { return m_HasMesh ? &m_Mesh : nullptr; }
-        MaterialComponent* GetMaterial() { return m_HasMaterial ? &m_Material : nullptr; }
+        MeshComponent* GetMesh();
+        const MeshComponent* GetMesh()     const;
+        MaterialComponent* GetMaterial();
+        const MaterialComponent* GetMaterial() const;
 
-        const MeshComponent* GetMesh()     const { return m_HasMesh ? &m_Mesh : nullptr; }
-        const MaterialComponent* GetMaterial() const { return m_HasMaterial ? &m_Material : nullptr; }
-
-        void SetMesh(std::shared_ptr<Mesh> mesh) {
-            m_Mesh.MeshData = std::move(mesh);
-            m_HasMesh = true;
-        }
-
-        void SetMaterial(std::shared_ptr<Material> mat) {
-            m_Material.Mat = std::move(mat);
-            m_HasMaterial = true;
-        }
+        void SetMesh(std::shared_ptr<Mesh> mesh);
+        void SetMaterial(std::shared_ptr<Material> mat);
 
     private:
         uint32_t           m_ID = 0;

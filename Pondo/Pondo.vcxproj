@@ -169,6 +169,7 @@ copy /B /Y ..\bin\Dist-windows-x86_64\Pondo\Pondo.dll ..\bin\Dist-windows-x86_64
     <ClInclude Include="src\Pondo\Events\Event.h" />
     <ClInclude Include="src\Pondo\Events\KeyEvents.h" />
     <ClInclude Include="src\Pondo\Events\MouseEvents.h" />
+    <ClInclude Include="src\Pondo\ImGui\ImGuiKeyMap.h" />
     <ClInclude Include="src\Pondo\ImGui\ImGuiLayer.h" />
     <ClInclude Include="src\Pondo\Input.h" />
     <ClInclude Include="src\Pondo\Layer.h" />
@@ -179,12 +180,19 @@ copy /B /Y ..\bin\Dist-windows-x86_64\Pondo\Pondo.dll ..\bin\Dist-windows-x86_64
     <ClInclude Include="src\Pondo\Renderer\Framebuffer.h" />
     <ClInclude Include="src\Pondo\Renderer\Material.h" />
     <ClInclude Include="src\Pondo\Renderer\Mesh.h" />
+    <ClInclude Include="src\Pondo\Renderer\RayUtils.h" />
     <ClInclude Include="src\Pondo\Renderer\Renderer.h" />
     <ClInclude Include="src\Pondo\Renderer\Shader.h" />
+    <ClInclude Include="src\Pondo\Renderer\Shaders.h" />
     <ClInclude Include="src\Pondo\Renderer\VertexArray.h" />
     <ClInclude Include="src\Pondo\Scene\Components.h" />
+    <ClInclude Include="src\Pondo\Scene\EditorCommands.h" />
+    <ClInclude Include="src\Pondo\Scene\EditorGeometry.h" />
+    <ClInclude Include="src\Pondo\Scene\EditorLayer.h" />
     <ClInclude Include="src\Pondo\Scene\Entity.h" />
+    <ClInclude Include="src\Pondo\Scene\FileDialogs.h" />
     <ClInclude Include="src\Pondo\Scene\Scene.h" />
+    <ClInclude Include="src\Pondo\Scene\SceneLayer.h" />
     <ClInclude Include="src\Pondo\Scene\SceneSerializer.h" />
     <ClInclude Include="src\Pondo\Timestep.h" />
     <ClInclude Include="src\Pondo\Window.h" />
@@ -204,13 +212,11 @@ copy /B /Y ..\bin\Dist-windows-x86_64\Pondo\Pondo.dll ..\bin\Dist-windows-x86_64
     <ClCompile Include="src\Pondo\Renderer\Renderer.cpp" />
     <ClCompile Include="src\Pondo\Renderer\Shader.cpp" />
     <ClCompile Include="src\Pondo\Renderer\VertexArray.cpp" />
+    <ClCompile Include="src\Pondo\Scene\EditorLayer.cpp" />
     <ClCompile Include="src\Pondo\Scene\Entity.cpp" />
     <ClCompile Include="src\Pondo\Scene\Scene.cpp" />
-    <ClCompile Include="src\Pondo\Scene\SceneSerializer.cpp">
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">PD_PLATFORM_WINDOWS</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Dist|x64'">PD_PLATFORM_WINDOWS</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PD_PLATFORM_WINDOWS</PreprocessorDefinitions>
-    </ClCompile>
+    <ClCompile Include="src\Pondo\Scene\SceneLayer.cpp" />
+    <ClCompile Include="src\Pondo\Scene\SceneSerializer.cpp" />
     <ClCompile Include="src\Pondo\Window.cpp" />
   </ItemGroup>
   <ItemGroup>

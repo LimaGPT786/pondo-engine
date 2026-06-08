@@ -30,5 +30,7 @@
 // --------------------------------
 
 // ---Entry Point------------------
+#ifdef PD_ENTRY_POINT
 #include "Pondo/EntryPoint.h"
+#endif
 // --------------------------------

@@ -14,6 +14,8 @@ namespace Pondo {
 		glm::vec2 TexCoord;
 	};
 
+#pragma warning(push)
+#pragma warning(disable: 4251)
 	class PONDO_API Mesh {
 	public:
 		Mesh(const std::vector<Vertex>& vertices,
@@ -40,5 +42,6 @@ namespace Pondo {
 		unsigned int m_VertexCount = 0;
 		std::string  m_Type = "Cube";
 	};
+#pragma warning(pop)
 
 }

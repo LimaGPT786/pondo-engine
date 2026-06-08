@@ -40,6 +40,9 @@
     <ClInclude Include="src\Pondo\Events\MouseEvents.h">
       <Filter>Pondo\Events</Filter>
     </ClInclude>
+    <ClInclude Include="src\Pondo\ImGui\ImGuiKeyMap.h">
+      <Filter>Pondo\ImGui</Filter>
+    </ClInclude>
     <ClInclude Include="src\Pondo\ImGui\ImGuiLayer.h">
       <Filter>Pondo\ImGui</Filter>
     </ClInclude>
@@ -70,10 +73,16 @@
     <ClInclude Include="src\Pondo\Renderer\Mesh.h">
       <Filter>Pondo\Renderer</Filter>
     </ClInclude>
+    <ClInclude Include="src\Pondo\Renderer\RayUtils.h">
+      <Filter>Pondo\Renderer</Filter>
+    </ClInclude>
     <ClInclude Include="src\Pondo\Renderer\Renderer.h">
       <Filter>Pondo\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Renderer\Shader.h">
+      <Filter>Pondo\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Pondo\Renderer\Shaders.h">
       <Filter>Pondo\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Renderer\VertexArray.h">
@@ -82,10 +91,25 @@
     <ClInclude Include="src\Pondo\Scene\Components.h">
       <Filter>Pondo\Scene</Filter>
     </ClInclude>
+    <ClInclude Include="src\Pondo\Scene\EditorCommands.h">
+      <Filter>Pondo\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Pondo\Scene\EditorGeometry.h">
+      <Filter>Pondo\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Pondo\Scene\EditorLayer.h">
+      <Filter>Pondo\Scene</Filter>
+    </ClInclude>
     <ClInclude Include="src\Pondo\Scene\Entity.h">
       <Filter>Pondo\Scene</Filter>
     </ClInclude>
+    <ClInclude Include="src\Pondo\Scene\FileDialogs.h">
+      <Filter>Pondo\Scene</Filter>
+    </ClInclude>
     <ClInclude Include="src\Pondo\Scene\Scene.h">
+      <Filter>Pondo\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Pondo\Scene\SceneLayer.h">
       <Filter>Pondo\Scene</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Scene\SceneSerializer.h">
@@ -141,10 +165,16 @@
     <ClCompile Include="src\Pondo\Renderer\VertexArray.cpp">
       <Filter>Pondo\Renderer</Filter>
     </ClCompile>
+    <ClCompile Include="src\Pondo\Scene\EditorLayer.cpp">
+      <Filter>Pondo\Scene</Filter>
+    </ClCompile>
     <ClCompile Include="src\Pondo\Scene\Entity.cpp">
       <Filter>Pondo\Scene</Filter>
     </ClCompile>
     <ClCompile Include="src\Pondo\Scene\Scene.cpp">
+      <Filter>Pondo\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Pondo\Scene\SceneLayer.cpp">
       <Filter>Pondo\Scene</Filter>
     </ClCompile>
     <ClCompile Include="src\Pondo\Scene\SceneSerializer.cpp">
