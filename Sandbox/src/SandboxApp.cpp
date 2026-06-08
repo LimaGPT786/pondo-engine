@@ -9,6 +9,7 @@
 #include "Pondo/Events/ApplicationEvents.h"
 #include "Pondo/Events/KeyEvents.h"
 #include "Pondo/Events/MouseEvents.h"
+#include <algorithm>
 
 // No imgui_impl_glfw — we feed ImGuiIO ourselves so Pondo's GLFW
 // callbacks are never touched.  Only the OpenGL *renderer* backend
@@ -260,47 +261,379 @@ public:
     }
 
     // Hit-test along the whole shaft (not just the tip) with generous radius
-    int GizmoAxisHit(glm::vec2 px, float r = 28.0f) {
-        if (!m_SelectedEntity) return -1;
-        glm::vec3 o = m_SelectedEntity->GetTransform().Position;
-        float scale = glm::length(m_Camera->GetPosition() - o) * 0.15f;
-        glm::vec3 tips[3] = {
-            o + glm::vec3(scale,0,0),
-            o + glm::vec3(0,scale,0),
-            o + glm::vec3(0,0,scale)
-        };
-        for (int i = 0; i < 3; ++i) {
-            glm::vec2 tipSc = WorldToScreen(tips[i], m_Camera->GetViewProjection(), m_VpPos, m_VpSize);
-            glm::vec2 baseSc = WorldToScreen(o, m_Camera->GetViewProjection(), m_VpPos, m_VpSize);
-            glm::vec2 shaft = tipSc - baseSc;
-            float shaftLen = glm::length(shaft);
-            if (shaftLen < 1.0f) continue;
-            glm::vec2 shaftDir = shaft / shaftLen;
-            float proj = glm::clamp(glm::dot(px - baseSc, shaftDir),
-                shaftLen * 0.2f, shaftLen);
-            glm::vec2 closest = baseSc + shaftDir * proj;
-            if (glm::length(px - closest) < r) return i;
+    int GizmoAxisHit(glm::vec2 px)
+    {
+        if (!m_SelectedEntity)
+            return -1;
+
+        glm::vec3 origin =
+            m_SelectedEntity->GetTransform().Position;
+
+        float gizmoScale =
+            glm::length(
+                m_Camera->GetPosition() -
+                origin
+            ) * 0.15f;
+
+        // =========================
+        // ROTATION MODE
+        // =========================
+        if (m_GizmoMode == 1)
+        {
+            int bestAxis = -1;
+            float bestDist = 999999.0f;
+
+            for (int axis = 0; axis < 3; axis++)
+            {
+                const int segments = 64;
+
+                for (int i = 0; i < segments; i++)
+                {
+                    float a0 =
+                        glm::two_pi<float>() *
+                        ((float)i / segments);
+
+                    float a1 =
+                        glm::two_pi<float>() *
+                        ((float)(i + 1) / segments);
+
+                    glm::vec3 p0;
+                    glm::vec3 p1;
+
+                    if (axis == 0)
+                    {
+                        p0 = origin + glm::vec3(
+                            0,
+                            cos(a0),
+                            sin(a0)
+                        ) * gizmoScale;
+
+                        p1 = origin + glm::vec3(
+                            0,
+                            cos(a1),
+                            sin(a1)
+                        ) * gizmoScale;
+                    }
+                    else if (axis == 1)
+                    {
+                        p0 = origin + glm::vec3(
+                            cos(a0),
+                            0,
+                            sin(a0)
+                        ) * gizmoScale;
+
+                        p1 = origin + glm::vec3(
+                            cos(a1),
+                            0,
+                            sin(a1)
+                        ) * gizmoScale;
+                    }
+                    else
+                    {
+                        p0 = origin + glm::vec3(
+                            cos(a0),
+                            sin(a0),
+                            0
+                        ) * gizmoScale;
+
+                        p1 = origin + glm::vec3(
+                            cos(a1),
+                            sin(a1),
+                            0
+                        ) * gizmoScale;
+                    }
+
+                    glm::vec2 s0 =
+                        WorldToScreen(
+                            p0,
+                            m_Camera->GetViewProjection(),
+                            m_VpPos,
+                            m_VpSize
+                        );
+
+                    glm::vec2 s1 =
+                        WorldToScreen(
+                            p1,
+                            m_Camera->GetViewProjection(),
+                            m_VpPos,
+                            m_VpSize
+                        );
+
+                    glm::vec2 seg =
+                        s1 - s0;
+
+                    float len =
+                        glm::dot(seg, seg);
+
+                    if (len < 1.0f)
+                        continue;
+
+                    float t =
+                        glm::clamp(
+                            glm::dot(px - s0, seg) / len,
+                            0.0f,
+                            1.0f
+                        );
+
+                    glm::vec2 hit =
+                        s0 + seg * t;
+
+                    float dist =
+                        glm::length(
+                            px - hit
+                        );
+
+                    if (dist < bestDist)
+                    {
+                        bestDist = dist;
+                        bestAxis = axis;
+                    }
+                }
+            }
+
+            return bestDist < 40.0f
+                ? bestAxis
+                : -1;
         }
-        return -1;
+
+        // =========================
+        // MOVE + SCALE MODE
+        // =========================
+
+        glm::vec3 tips[3] =
+        {
+            origin + glm::vec3(gizmoScale,0,0),
+            origin + glm::vec3(0,gizmoScale,0),
+            origin + glm::vec3(0,0,gizmoScale)
+        };
+
+        int bestAxis = -1;
+        float bestDist = 999999.0f;
+
+        for (int i = 0; i < 3; i++)
+        {
+            glm::vec2 a =
+                WorldToScreen(
+                    origin,
+                    m_Camera->GetViewProjection(),
+                    m_VpPos,
+                    m_VpSize
+                );
+
+            glm::vec2 b =
+                WorldToScreen(
+                    tips[i],
+                    m_Camera->GetViewProjection(),
+                    m_VpPos,
+                    m_VpSize
+                );
+
+            glm::vec2 ab =
+                b - a;
+
+            float len =
+                glm::dot(ab, ab);
+
+            if (len < 1.0f)
+                continue;
+
+            float t =
+                glm::clamp(
+                    glm::dot(px - a, ab) / len,
+                    0.0f,
+                    1.0f
+                );
+
+            glm::vec2 hit =
+                a + ab * t;
+
+            float dist =
+                glm::length(
+                    px - hit
+                );
+
+            if (dist < bestDist)
+            {
+                bestDist = dist;
+                bestAxis = i;
+            }
+        }
+
+        return bestDist < 35.0f
+            ? bestAxis
+            : -1;
     }
 
-    void BeginGizmoDrag(int axis, glm::vec2 px) {
-        m_DragAxis = axis; m_DragStartPx = px;
-        m_DragStartPos = m_SelectedEntity->GetTransform().Position;
+    void BeginGizmoDrag(int axis, glm::vec2 px)
+    {
+        if (!m_SelectedEntity)
+            return;
+
+        m_DragAxis =
+            axis;
+
+        m_DragStartPx =
+            px;
+
+        auto& tf =
+            m_SelectedEntity
+            ->GetTransform();
+
+        m_DragStartPos =
+            tf.Position;
+
+        m_DragStartScale =
+            tf.Scale;
+
+        m_DragStartRot =
+            tf.Rotation;
     }
-    void UpdateGizmoDrag(glm::vec2 px) {
-        if (m_DragAxis < 0 || !m_SelectedEntity) return;
-        static const glm::vec3 kAxes[3] = { {1,0,0},{0,1,0},{0,0,1} };
-        glm::vec3 wa = kAxes[m_DragAxis];
-        glm::vec2 p0 = WorldToScreen(m_DragStartPos, m_Camera->GetViewProjection(), m_VpPos, m_VpSize);
-        glm::vec2 p1 = WorldToScreen(m_DragStartPos + wa, m_Camera->GetViewProjection(), m_VpPos, m_VpSize);
-        glm::vec2 sd = p1 - p0;
-        float sl = glm::length(sd);
-        if (sl < 1.0f) return;
-        sd /= sl;
-        float delta = glm::dot(px - m_DragStartPx, sd) / sl;
-        m_SelectedEntity->GetTransform().Position = m_DragStartPos + wa * delta;
+
+    void UpdateGizmoDrag(glm::vec2 px)
+    {
+        if (
+            m_DragAxis < 0 ||
+            !m_SelectedEntity
+            )
+            return;
+
+        auto& tf =
+            m_SelectedEntity
+            ->GetTransform();
+
+        static const glm::vec3 axes[3] =
+        {
+            {1,0,0},
+            {0,1,0},
+            {0,0,1}
+        };
+
+        glm::vec3 axis =
+            axes[m_DragAxis];
+
+        //-------------------------------------------------
+        // MOVE
+        //-------------------------------------------------
+
+        if (m_GizmoMode == 0)
+        {
+            glm::vec2 p0 =
+                WorldToScreen(
+                    m_DragStartPos,
+                    m_Camera->GetViewProjection(),
+                    m_VpPos,
+                    m_VpSize
+                );
+
+            glm::vec2 p1 =
+                WorldToScreen(
+                    m_DragStartPos + axis,
+                    m_Camera->GetViewProjection(),
+                    m_VpPos,
+                    m_VpSize
+                );
+
+            glm::vec2 dir =
+                p1 - p0;
+
+            float len =
+                glm::length(dir);
+
+            if (len < 5)
+                return;
+
+            dir /= len;
+
+            float amount =
+                glm::dot(
+                    px -
+                    m_DragStartPx,
+                    dir
+                ) * 0.01f;
+
+            tf.Position =
+                m_DragStartPos +
+                axis *
+                amount;
+        }
+
+        //-------------------------------------------------
+        // ROTATE (screen drag)
+        //-------------------------------------------------
+
+        else if (m_GizmoMode == 1)
+        {
+            glm::vec2 delta =
+                px -
+                m_DragStartPx;
+
+            float amount =
+                (
+                    delta.x
+                    -
+                    delta.y
+                    ) * 0.45f;
+
+            tf.Rotation =
+                m_DragStartRot;
+
+            tf.Rotation[m_DragAxis]
+                += amount;
+        }
+
+        //-------------------------------------------------
+        // SCALE
+        //-------------------------------------------------
+
+        else
+        {
+            glm::vec2 p0 =
+                WorldToScreen(
+                    m_DragStartPos,
+                    m_Camera->GetViewProjection(),
+                    m_VpPos,
+                    m_VpSize
+                );
+
+            glm::vec2 p1 =
+                WorldToScreen(
+                    m_DragStartPos + axis,
+                    m_Camera->GetViewProjection(),
+                    m_VpPos,
+                    m_VpSize
+                );
+
+            glm::vec2 dir =
+                p1 - p0;
+
+            float len =
+                glm::length(dir);
+
+            if (len < 5)
+                return;
+
+            dir /= len;
+
+            float amount =
+                glm::dot(
+                    px -
+                    m_DragStartPx,
+                    dir
+                ) * 0.01f;
+
+            tf.Scale =
+                m_DragStartScale;
+
+            tf.Scale[m_DragAxis] =
+                std::max(
+                    0.05f,
+                    m_DragStartScale[m_DragAxis]
+                    +
+                    amount
+                );
+        }
     }
+
     void EndGizmoDrag() { m_DragAxis = -1; }
     bool IsDraggingGizmo() const { return m_DragAxis >= 0; }
 
@@ -406,9 +739,9 @@ public:
             glLineWidth(2.0f);
             m_FlatShader->Bind();
             m_FlatShader->SetMat4("u_ViewProjection", m_Camera->GetViewProjection());
-            m_FlatShader->SetMat4("u_Transform",
-                glm::translate(glm::mat4(1), tf.Position) *
-                glm::scale(glm::mat4(1), tf.Scale * 1.05f));
+            glm::mat4 transform = tf.GetTransform();
+            transform = transform * glm::scale(glm::mat4(1), glm::vec3(1.05f));
+            m_FlatShader->SetMat4("u_Transform", transform);
             m_FlatShader->SetFloat4("u_Color", { 1,0.85f,0.1f,1 });
             auto* mc = m_SelectedEntity->GetMesh();
             if (mc && mc->MeshData) {
@@ -435,19 +768,103 @@ public:
     }
 
 private:
-    void DrawGizmo() {
-        glm::vec3 o = m_SelectedEntity->GetTransform().Position;
-        float scale = glm::length(m_Camera->GetPosition() - o) * 0.15f;
-        glLineWidth(3.0f); glDisable(GL_DEPTH_TEST);
-        struct Ax { glm::vec3 axis; glm::vec4 col, hov; };
-        Ax axes[3] = {
-            {{1,0,0},{0.95f,0.25f,0.25f,1},{1,0.6f,0.6f,1}},
-            {{0,1,0},{0.25f,0.90f,0.25f,1},{0.6f,1,0.6f,1}},
-            {{0,0,1},{0.25f,0.45f,0.95f,1},{0.6f,0.7f,1,1}},
+    void DrawGizmo()
+    {
+        if (!m_SelectedEntity)
+            return;
+
+        // Move / Rotate / Scale
+        if (Pondo::Input::IsKeyPressed(GLFW_KEY_1))
+            m_GizmoMode = 0;
+
+        if (Pondo::Input::IsKeyPressed(GLFW_KEY_2))
+            m_GizmoMode = 1;
+
+        if (Pondo::Input::IsKeyPressed(GLFW_KEY_3))
+            m_GizmoMode = 2;
+
+        glm::vec3 origin =
+            m_SelectedEntity
+            ->GetTransform()
+            .Position;
+
+        float scale =
+            glm::length(
+                m_Camera->GetPosition()
+                - origin
+            ) * 0.15f;
+
+        glDisable(GL_DEPTH_TEST);
+
+        struct Axis
+        {
+            glm::vec3 dir;
+            glm::vec4 color;
+            glm::vec4 active;
         };
-        for (int i = 0; i < 3; ++i)
-            DrawArrow(o, axes[i].axis, scale, m_DragAxis == i ? axes[i].hov : axes[i].col);
-        glLineWidth(1.0f); glEnable(GL_DEPTH_TEST);
+
+        Axis axes[3] =
+        {
+            {{1,0,0},{1,0.2f,0.2f,1},{1,0.6f,0.6f,1}},
+            {{0,1,0},{0.2f,1,0.2f,1},{0.6f,1,0.6f,1}},
+            {{0,0,1},{0.2f,0.4f,1,1},{0.6f,0.8f,1,1}}
+        };
+
+        for (int i = 0; i < 3; i++)
+        {
+            glm::vec4 col =
+                (m_DragAxis == i)
+                ? axes[i].active
+                : axes[i].color;
+
+            glm::vec3 tip =
+                origin +
+                axes[i].dir *
+                scale;
+
+            //--------------------------------------------------
+            // MOVE → arrows
+            //--------------------------------------------------
+
+            if (m_GizmoMode == 0)
+            {
+                DrawArrow(
+                    origin,
+                    axes[i].dir,
+                    scale,
+                    col
+                );
+            }
+
+            //--------------------------------------------------
+            // ROTATE → axis lines
+            //--------------------------------------------------
+
+            else if (m_GizmoMode == 1)
+            {
+                DrawRotationCircle(
+                    origin,
+                    axes[i].dir,
+                    scale,
+                    col
+                );
+            }
+
+            //--------------------------------------------------
+            // SCALE → dots
+            //--------------------------------------------------
+
+            else
+            {
+                DrawScaleDot(
+                    tip,
+                    scale,
+                    col
+                );
+            }
+        }
+
+        glEnable(GL_DEPTH_TEST);
     }
 
     void DrawArrow(const glm::vec3& origin, const glm::vec3& axis,
@@ -465,6 +882,138 @@ private:
         m_Arrow.Draw();
     }
 
+    void DrawRotationCircle(
+        const glm::vec3& origin,
+        const glm::vec3& axis,
+        float scale,
+        const glm::vec4& color)
+    {
+        constexpr int SEGMENTS = 48;
+
+        std::vector<float> verts;
+
+        float radius =
+            scale * 0.9f;
+
+        glm::vec3 right;
+        glm::vec3 up;
+
+        // choose plane perpendicular to axis
+        if (axis.x != 0)
+        {
+            right = { 0,1,0 };
+            up = { 0,0,1 };
+        }
+        else if (axis.y != 0)
+        {
+            right = { 1,0,0 };
+            up = { 0,0,1 };
+        }
+        else
+        {
+            right = { 1,0,0 };
+            up = { 0,1,0 };
+        }
+
+        for (int i = 0; i <= SEGMENTS; i++)
+        {
+            float a =
+                glm::two_pi<float>() *
+                ((float)i / SEGMENTS);
+
+            glm::vec3 p =
+                origin +
+                right * cos(a) * radius +
+                up * sin(a) * radius;
+
+            verts.push_back(p.x);
+            verts.push_back(p.y);
+            verts.push_back(p.z);
+        }
+
+        auto vb =
+            std::make_shared<Pondo::VertexBuffer>(
+                verts.data(),
+                (uint32_t)(
+                    verts.size()
+                    * sizeof(float)
+                    )
+            );
+
+        auto va =
+            std::make_shared<Pondo::VertexArray>();
+
+        va->AddVertexBuffer(vb);
+
+        m_FlatShader->Bind();
+
+        m_FlatShader->SetMat4(
+            "u_Transform",
+            glm::mat4(1)
+        );
+
+        m_FlatShader->SetFloat4(
+            "u_Color",
+            color
+        );
+
+        va->Bind();
+
+        glLineWidth(4);
+
+        glDrawArrays(
+            GL_LINE_STRIP,
+            0,
+            SEGMENTS + 1
+        );
+
+        va->Unbind();
+
+        glLineWidth(1);
+    }
+
+    void DrawScaleDot(
+        const glm::vec3& pos,
+        float size,
+        const glm::vec4& color)
+    {
+        m_FlatShader->Bind();
+
+        glm::mat4 transform =
+            glm::translate(
+                glm::mat4(1.0f),
+                pos
+            ) *
+            glm::scale(
+                glm::mat4(1.0f),
+                glm::vec3(size * 0.08f)
+            );
+
+        m_FlatShader->SetMat4(
+            "u_Transform",
+            transform
+        );
+
+        m_FlatShader->SetFloat4(
+            "u_Color",
+            color
+        );
+
+        glPointSize(18.0f);
+
+        m_Arrow.VA->Bind();
+
+        glDrawArrays(
+            GL_POINTS,
+            0,
+            1
+        );
+
+        m_Arrow.VA->Unbind();
+
+        glPointSize(1.0f);
+    }
+
     std::shared_ptr<Pondo::Camera>      m_Camera;
     std::shared_ptr<Pondo::Shader>      m_Shader, m_FlatShader;
     std::shared_ptr<Pondo::Framebuffer> m_Framebuffer;
@@ -475,8 +1024,17 @@ private:
     float m_LastMouseX = 0, m_LastMouseY = 0;
     glm::vec2 m_VpPos = { 0,0 }, m_VpSize = { 1280,720 };
     int m_DragAxis = -1;
+
+    // 0 Move
+    // 1 Rotate
+    // 2 Scale
+    int m_GizmoMode = 0;
+
     glm::vec2 m_DragStartPx = {};
+
     glm::vec3 m_DragStartPos = {};
+    glm::vec3 m_DragStartScale = {};
+    glm::vec3 m_DragStartRot = {};
 };
 
 // -------------------------------------------------------
@@ -722,6 +1280,10 @@ public:
                     ImGui::Text("Yaw: %.1f  Pitch: %.1f", cam->GetYaw(), cam->GetPitch());
                 }
                 ImGui::Separator();
+                ImGui::Text("Gizmo:");
+                ImGui::Text("1 Move");
+                ImGui::Text("2 Rotate");
+                ImGui::Text("3 Scale");
             }
 
             if (m_ShowProps) {
