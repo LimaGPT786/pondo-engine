@@ -1,6 +1,7 @@
 #include "Application.h"
 #include "Input.h"
 #include "Log.h"
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
 namespace Pondo {
@@ -21,6 +22,13 @@ namespace Pondo {
 		delete m_Window;
 	}
 
+	void Application::GL_Enable(unsigned int cap) { glEnable(cap); }
+	void Application::GL_Disable(unsigned int cap) { glDisable(cap); }
+	void Application::GL_LineWidth(float width) { glLineWidth(width); }
+	void Application::GL_PolygonMode(unsigned int f, unsigned int m) { glPolygonMode(f, m); }
+	void Application::GL_DrawArrays(unsigned int mode, int first, int count) { glDrawArrays(mode, first, count); }
+	void Application::GL_DrawElements(unsigned int mode, int count, unsigned int type, const void* indices) { glDrawElements(mode, count, type, indices); }
+
 	void Application::PushLayer(Layer* layer)
 	{
 		m_LayerStack.PushLayer(layer);
@@ -34,6 +42,11 @@ namespace Pondo {
 	void* Application::GetProcAddress(const char* name)
 	{
 		return (void*)glfwGetProcAddress(name);
+	}
+
+	void Application::InitGlad()
+	{
+		gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
 	}
 
 	void Application::OnEvent(Event& e)

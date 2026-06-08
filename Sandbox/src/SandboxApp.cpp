@@ -1,5 +1,4 @@
 #include <Pondo.h>
-#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
@@ -7,11 +6,14 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 #include <imgui_impl_opengl3.h>
+#include "Pondo/Events/ApplicationEvents.h"
+#include "Pondo/Events/KeyEvents.h"
+#include "Pondo/Events/MouseEvents.h"
+#include <algorithm>
 
-// We intentionally do NOT include imgui_impl_glfw.h or call any
-// ImGui_ImplGlfw_* functions. Instead we manually populate ImGuiIO
-// each frame by polling GLFW directly. This sidesteps every callback
-// ordering / context-not-yet-created problem entirely.
+// No imgui_impl_glfw — we feed ImGuiIO ourselves so Pondo's GLFW
+// callbacks are never touched.  Only the OpenGL *renderer* backend
+// is used; everything else is manual.
 
 // -------------------------------------------------------
 //  Shaders
@@ -66,6 +68,66 @@ static const char* s_FlatFragSrc = R"(
 )";
 
 // -------------------------------------------------------
+//  GLFW key code -> ImGuiKey
+//  (ImGui 1.87+ requires AddKeyEvent; the old KeyMap is gone)
+// -------------------------------------------------------
+
+static ImGuiKey GlfwKeyToImGui(int key)
+{
+    switch (key)
+    {
+    case GLFW_KEY_TAB:          return ImGuiKey_Tab;
+    case GLFW_KEY_LEFT:         return ImGuiKey_LeftArrow;
+    case GLFW_KEY_RIGHT:        return ImGuiKey_RightArrow;
+    case GLFW_KEY_UP:           return ImGuiKey_UpArrow;
+    case GLFW_KEY_DOWN:         return ImGuiKey_DownArrow;
+    case GLFW_KEY_PAGE_UP:      return ImGuiKey_PageUp;
+    case GLFW_KEY_PAGE_DOWN:    return ImGuiKey_PageDown;
+    case GLFW_KEY_HOME:         return ImGuiKey_Home;
+    case GLFW_KEY_END:          return ImGuiKey_End;
+    case GLFW_KEY_INSERT:       return ImGuiKey_Insert;
+    case GLFW_KEY_DELETE:       return ImGuiKey_Delete;
+    case GLFW_KEY_BACKSPACE:    return ImGuiKey_Backspace;
+    case GLFW_KEY_SPACE:        return ImGuiKey_Space;
+    case GLFW_KEY_ENTER:        return ImGuiKey_Enter;
+    case GLFW_KEY_ESCAPE:       return ImGuiKey_Escape;
+    case GLFW_KEY_LEFT_CONTROL: return ImGuiKey_LeftCtrl;
+    case GLFW_KEY_LEFT_SHIFT:   return ImGuiKey_LeftShift;
+    case GLFW_KEY_LEFT_ALT:     return ImGuiKey_LeftAlt;
+    case GLFW_KEY_LEFT_SUPER:   return ImGuiKey_LeftSuper;
+    case GLFW_KEY_RIGHT_CONTROL:return ImGuiKey_RightCtrl;
+    case GLFW_KEY_RIGHT_SHIFT:  return ImGuiKey_RightShift;
+    case GLFW_KEY_RIGHT_ALT:    return ImGuiKey_RightAlt;
+    case GLFW_KEY_RIGHT_SUPER:  return ImGuiKey_RightSuper;
+    case GLFW_KEY_A: return ImGuiKey_A; case GLFW_KEY_B: return ImGuiKey_B;
+    case GLFW_KEY_C: return ImGuiKey_C; case GLFW_KEY_D: return ImGuiKey_D;
+    case GLFW_KEY_E: return ImGuiKey_E; case GLFW_KEY_F: return ImGuiKey_F;
+    case GLFW_KEY_G: return ImGuiKey_G; case GLFW_KEY_H: return ImGuiKey_H;
+    case GLFW_KEY_I: return ImGuiKey_I; case GLFW_KEY_J: return ImGuiKey_J;
+    case GLFW_KEY_K: return ImGuiKey_K; case GLFW_KEY_L: return ImGuiKey_L;
+    case GLFW_KEY_M: return ImGuiKey_M; case GLFW_KEY_N: return ImGuiKey_N;
+    case GLFW_KEY_O: return ImGuiKey_O; case GLFW_KEY_P: return ImGuiKey_P;
+    case GLFW_KEY_Q: return ImGuiKey_Q; case GLFW_KEY_R: return ImGuiKey_R;
+    case GLFW_KEY_S: return ImGuiKey_S; case GLFW_KEY_T: return ImGuiKey_T;
+    case GLFW_KEY_U: return ImGuiKey_U; case GLFW_KEY_V: return ImGuiKey_V;
+    case GLFW_KEY_W: return ImGuiKey_W; case GLFW_KEY_X: return ImGuiKey_X;
+    case GLFW_KEY_Y: return ImGuiKey_Y; case GLFW_KEY_Z: return ImGuiKey_Z;
+    case GLFW_KEY_0: return ImGuiKey_0; case GLFW_KEY_1: return ImGuiKey_1;
+    case GLFW_KEY_2: return ImGuiKey_2; case GLFW_KEY_3: return ImGuiKey_3;
+    case GLFW_KEY_4: return ImGuiKey_4; case GLFW_KEY_5: return ImGuiKey_5;
+    case GLFW_KEY_6: return ImGuiKey_6; case GLFW_KEY_7: return ImGuiKey_7;
+    case GLFW_KEY_8: return ImGuiKey_8; case GLFW_KEY_9: return ImGuiKey_9;
+    case GLFW_KEY_F1:  return ImGuiKey_F1;  case GLFW_KEY_F2:  return ImGuiKey_F2;
+    case GLFW_KEY_F3:  return ImGuiKey_F3;  case GLFW_KEY_F4:  return ImGuiKey_F4;
+    case GLFW_KEY_F5:  return ImGuiKey_F5;  case GLFW_KEY_F6:  return ImGuiKey_F6;
+    case GLFW_KEY_F7:  return ImGuiKey_F7;  case GLFW_KEY_F8:  return ImGuiKey_F8;
+    case GLFW_KEY_F9:  return ImGuiKey_F9;  case GLFW_KEY_F10: return ImGuiKey_F10;
+    case GLFW_KEY_F11: return ImGuiKey_F11; case GLFW_KEY_F12: return ImGuiKey_F12;
+    default: return ImGuiKey_None;
+    }
+}
+
+// -------------------------------------------------------
 //  Ray helpers
 // -------------------------------------------------------
 
@@ -117,7 +179,7 @@ static glm::vec2 WorldToScreen(const glm::vec3& world, const glm::mat4& vp,
 // -------------------------------------------------------
 
 struct GridRenderer {
-    unsigned int VAO = 0, VBO = 0;
+    std::shared_ptr<Pondo::VertexArray> VA;
     int lineCount = 0;
 
     void Build(int halfSize, int step) {
@@ -128,15 +190,15 @@ struct GridRenderer {
             v.insert(v.end(), { -(float)halfSize,0,f, (float)halfSize,0,f });
         }
         lineCount = (int)v.size() / 3;
-        glGenVertexArrays(1, &VAO); glGenBuffers(1, &VBO);
-        glBindVertexArray(VAO);
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER, v.size() * sizeof(float), v.data(), GL_STATIC_DRAW);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
-        glBindVertexArray(0);
+        auto vb = std::make_shared<Pondo::VertexBuffer>(v.data(), (unsigned int)(v.size() * sizeof(float)));
+        VA = std::make_shared<Pondo::VertexArray>();
+        VA->AddVertexBuffer(vb);
     }
-    void Draw() const { glBindVertexArray(VAO); glDrawArrays(GL_LINES, 0, lineCount); glBindVertexArray(0); }
+    void Draw() const {
+        VA->Bind();
+        glDrawArrays(GL_LINES, 0, lineCount);
+        VA->Unbind();
+    }
 };
 
 // -------------------------------------------------------
@@ -144,26 +206,26 @@ struct GridRenderer {
 // -------------------------------------------------------
 
 struct ArrowGizmo {
-    unsigned int VAO = 0, VBO = 0;
+    std::shared_ptr<Pondo::VertexArray> VA;
     int vertCount = 0;
 
     void Build() {
         float s = 0.07f, tip = 1.0f, base = 0.78f;
         std::vector<float> v = {
-            0,0,0, 0,tip,0,
-            0,tip,0, s,base,0,  0,tip,0,-s,base,0,
-            0,tip,0, 0,base,s,  0,tip,0, 0,base,-s,
+            0,0,0,  0,tip,0,
+            0,tip,0,  s,base,0,    0,tip,0, -s,base,0,
+            0,tip,0,  0,base,s,    0,tip,0,  0,base,-s,
         };
         vertCount = (int)v.size() / 3;
-        glGenVertexArrays(1, &VAO); glGenBuffers(1, &VBO);
-        glBindVertexArray(VAO);
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER, v.size() * sizeof(float), v.data(), GL_STATIC_DRAW);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
-        glBindVertexArray(0);
+        auto vb = std::make_shared<Pondo::VertexBuffer>(v.data(), (unsigned int)(v.size() * sizeof(float)));
+        VA = std::make_shared<Pondo::VertexArray>();
+        VA->AddVertexBuffer(vb);
     }
-    void Draw() const { glBindVertexArray(VAO); glDrawArrays(GL_LINES, 0, vertCount); glBindVertexArray(0); }
+    void Draw() const {
+        VA->Bind();
+        glDrawArrays(GL_LINES, 0, vertCount);
+        VA->Unbind();
+    }
 };
 
 // -------------------------------------------------------
@@ -184,56 +246,394 @@ public:
     Pondo::Camera* GetCamera() { return m_Camera.get(); }
 
     void TryPickEntity(glm::vec2 px) {
-        printf("[PICK] TryPickEntity px=(%.0f,%.0f) vpPos=(%.0f,%.0f) vpSize=(%.0f,%.0f)\n",
-            px.x, px.y, m_VpPos.x, m_VpPos.y, m_VpSize.x, m_VpSize.y);
-        if (m_VpSize.x <= 0 || m_VpSize.y <= 0) { printf("[PICK] bad vpSize, abort\n"); return; }
+        if (m_VpSize.x <= 0 || m_VpSize.y <= 0) return;
         Ray ray = ScreenToRay(px, m_VpPos, m_VpSize,
             glm::inverse(m_Camera->GetViewProjection()));
-        printf("[PICK] ray origin=(%.2f,%.2f,%.2f) dir=(%.2f,%.2f,%.2f)\n",
-            ray.origin.x, ray.origin.y, ray.origin.z, ray.dir.x, ray.dir.y, ray.dir.z);
         Pondo::Entity* best = nullptr; float bestT = 1e30f;
         for (auto& ep : m_Scene->GetEntities()) {
             if (!ep->GetMesh()) continue;
             glm::vec3 c = ep->GetTransform().Position;
             glm::vec3 h = glm::abs(ep->GetTransform().Scale) * 0.5f;
             float t = RayAABB(ray, c - h, c + h);
-            printf("[PICK]   entity='%s' center=(%.1f,%.1f,%.1f) half=(%.1f,%.1f,%.1f) t=%.3f\n",
-                ep->GetTag().c_str(), c.x, c.y, c.z, h.x, h.y, h.z, t);
             if (t > 0.0f && t < bestT) { bestT = t; best = ep.get(); }
         }
         m_SelectedEntity = best;
-        printf("[PICK] selected: %s\n", best ? best->GetTag().c_str() : "NONE");
-        fflush(stdout);
     }
 
-    int GizmoAxisHit(glm::vec2 px, float r = 18.0f) {
-        if (!m_SelectedEntity) return -1;
-        glm::vec3 o = m_SelectedEntity->GetTransform().Position;
-        float scale = glm::length(m_Camera->GetPosition() - o) * 0.15f;
-        glm::vec3 tips[3] = { o + glm::vec3(scale,0,0), o + glm::vec3(0,scale,0), o + glm::vec3(0,0,scale) };
-        for (int i = 0; i < 3; ++i)
-            if (glm::length(px - WorldToScreen(tips[i], m_Camera->GetViewProjection(), m_VpPos, m_VpSize)) < r)
-                return i;
-        return -1;
+    // Hit-test along the whole shaft (not just the tip) with generous radius
+    int GizmoAxisHit(glm::vec2 px)
+    {
+        if (!m_SelectedEntity)
+            return -1;
+
+        glm::vec3 origin =
+            m_SelectedEntity->GetTransform().Position;
+
+        float gizmoScale =
+            glm::length(
+                m_Camera->GetPosition() -
+                origin
+            ) * 0.15f;
+
+        // =========================
+        // ROTATION MODE
+        // =========================
+        if (m_GizmoMode == 1)
+        {
+            int bestAxis = -1;
+            float bestDist = 999999.0f;
+
+            for (int axis = 0; axis < 3; axis++)
+            {
+                const int segments = 64;
+
+                for (int i = 0; i < segments; i++)
+                {
+                    float a0 =
+                        glm::two_pi<float>() *
+                        ((float)i / segments);
+
+                    float a1 =
+                        glm::two_pi<float>() *
+                        ((float)(i + 1) / segments);
+
+                    glm::vec3 p0;
+                    glm::vec3 p1;
+
+                    if (axis == 0)
+                    {
+                        p0 = origin + glm::vec3(
+                            0,
+                            cos(a0),
+                            sin(a0)
+                        ) * gizmoScale;
+
+                        p1 = origin + glm::vec3(
+                            0,
+                            cos(a1),
+                            sin(a1)
+                        ) * gizmoScale;
+                    }
+                    else if (axis == 1)
+                    {
+                        p0 = origin + glm::vec3(
+                            cos(a0),
+                            0,
+                            sin(a0)
+                        ) * gizmoScale;
+
+                        p1 = origin + glm::vec3(
+                            cos(a1),
+                            0,
+                            sin(a1)
+                        ) * gizmoScale;
+                    }
+                    else
+                    {
+                        p0 = origin + glm::vec3(
+                            cos(a0),
+                            sin(a0),
+                            0
+                        ) * gizmoScale;
+
+                        p1 = origin + glm::vec3(
+                            cos(a1),
+                            sin(a1),
+                            0
+                        ) * gizmoScale;
+                    }
+
+                    glm::vec2 s0 =
+                        WorldToScreen(
+                            p0,
+                            m_Camera->GetViewProjection(),
+                            m_VpPos,
+                            m_VpSize
+                        );
+
+                    glm::vec2 s1 =
+                        WorldToScreen(
+                            p1,
+                            m_Camera->GetViewProjection(),
+                            m_VpPos,
+                            m_VpSize
+                        );
+
+                    glm::vec2 seg =
+                        s1 - s0;
+
+                    float len =
+                        glm::dot(seg, seg);
+
+                    if (len < 1.0f)
+                        continue;
+
+                    float t =
+                        glm::clamp(
+                            glm::dot(px - s0, seg) / len,
+                            0.0f,
+                            1.0f
+                        );
+
+                    glm::vec2 hit =
+                        s0 + seg * t;
+
+                    float dist =
+                        glm::length(
+                            px - hit
+                        );
+
+                    if (dist < bestDist)
+                    {
+                        bestDist = dist;
+                        bestAxis = axis;
+                    }
+                }
+            }
+
+            return bestDist < 40.0f
+                ? bestAxis
+                : -1;
+        }
+
+        // =========================
+        // MOVE + SCALE MODE
+        // =========================
+
+        glm::vec3 tips[3] =
+        {
+            origin + glm::vec3(gizmoScale,0,0),
+            origin + glm::vec3(0,gizmoScale,0),
+            origin + glm::vec3(0,0,gizmoScale)
+        };
+
+        int bestAxis = -1;
+        float bestDist = 999999.0f;
+
+        for (int i = 0; i < 3; i++)
+        {
+            glm::vec2 a =
+                WorldToScreen(
+                    origin,
+                    m_Camera->GetViewProjection(),
+                    m_VpPos,
+                    m_VpSize
+                );
+
+            glm::vec2 b =
+                WorldToScreen(
+                    tips[i],
+                    m_Camera->GetViewProjection(),
+                    m_VpPos,
+                    m_VpSize
+                );
+
+            glm::vec2 ab =
+                b - a;
+
+            float len =
+                glm::dot(ab, ab);
+
+            if (len < 1.0f)
+                continue;
+
+            float t =
+                glm::clamp(
+                    glm::dot(px - a, ab) / len,
+                    0.0f,
+                    1.0f
+                );
+
+            glm::vec2 hit =
+                a + ab * t;
+
+            float dist =
+                glm::length(
+                    px - hit
+                );
+
+            if (dist < bestDist)
+            {
+                bestDist = dist;
+                bestAxis = i;
+            }
+        }
+
+        return bestDist < 35.0f
+            ? bestAxis
+            : -1;
     }
 
-    void BeginGizmoDrag(int axis, glm::vec2 px) {
-        m_DragAxis = axis; m_DragStartPx = px;
-        m_DragStartPos = m_SelectedEntity->GetTransform().Position;
+    void BeginGizmoDrag(int axis, glm::vec2 px)
+    {
+        if (!m_SelectedEntity)
+            return;
+
+        m_DragAxis =
+            axis;
+
+        m_DragStartPx =
+            px;
+
+        auto& tf =
+            m_SelectedEntity
+            ->GetTransform();
+
+        m_DragStartPos =
+            tf.Position;
+
+        m_DragStartScale =
+            tf.Scale;
+
+        m_DragStartRot =
+            tf.Rotation;
     }
-    void UpdateGizmoDrag(glm::vec2 px) {
-        if (m_DragAxis < 0 || !m_SelectedEntity) return;
-        static const glm::vec3 kAxes[3] = { {1,0,0},{0,1,0},{0,0,1} };
-        glm::vec3 wa = kAxes[m_DragAxis];
-        glm::vec2 p0 = WorldToScreen(m_DragStartPos, m_Camera->GetViewProjection(), m_VpPos, m_VpSize);
-        glm::vec2 p1 = WorldToScreen(m_DragStartPos + wa, m_Camera->GetViewProjection(), m_VpPos, m_VpSize);
-        glm::vec2 sd = p1 - p0;
-        float sl = glm::length(sd);
-        if (sl < 1.0f) return;
-        sd /= sl;
-        float delta = glm::dot(px - m_DragStartPx, sd) / sl;
-        m_SelectedEntity->GetTransform().Position = m_DragStartPos + wa * delta;
+
+    void UpdateGizmoDrag(glm::vec2 px)
+    {
+        if (
+            m_DragAxis < 0 ||
+            !m_SelectedEntity
+            )
+            return;
+
+        auto& tf =
+            m_SelectedEntity
+            ->GetTransform();
+
+        static const glm::vec3 axes[3] =
+        {
+            {1,0,0},
+            {0,1,0},
+            {0,0,1}
+        };
+
+        glm::vec3 axis =
+            axes[m_DragAxis];
+
+        //-------------------------------------------------
+        // MOVE
+        //-------------------------------------------------
+
+        if (m_GizmoMode == 0)
+        {
+            glm::vec2 p0 =
+                WorldToScreen(
+                    m_DragStartPos,
+                    m_Camera->GetViewProjection(),
+                    m_VpPos,
+                    m_VpSize
+                );
+
+            glm::vec2 p1 =
+                WorldToScreen(
+                    m_DragStartPos + axis,
+                    m_Camera->GetViewProjection(),
+                    m_VpPos,
+                    m_VpSize
+                );
+
+            glm::vec2 dir =
+                p1 - p0;
+
+            float len =
+                glm::length(dir);
+
+            if (len < 5)
+                return;
+
+            dir /= len;
+
+            float amount =
+                glm::dot(
+                    px -
+                    m_DragStartPx,
+                    dir
+                ) * 0.01f;
+
+            tf.Position =
+                m_DragStartPos +
+                axis *
+                amount;
+        }
+
+        //-------------------------------------------------
+        // ROTATE (screen drag)
+        //-------------------------------------------------
+
+        else if (m_GizmoMode == 1)
+        {
+            glm::vec2 delta =
+                px -
+                m_DragStartPx;
+
+            float amount =
+                (
+                    delta.x
+                    -
+                    delta.y
+                    ) * 0.45f;
+
+            tf.Rotation =
+                m_DragStartRot;
+
+            tf.Rotation[m_DragAxis]
+                += amount;
+        }
+
+        //-------------------------------------------------
+        // SCALE
+        //-------------------------------------------------
+
+        else
+        {
+            glm::vec2 p0 =
+                WorldToScreen(
+                    m_DragStartPos,
+                    m_Camera->GetViewProjection(),
+                    m_VpPos,
+                    m_VpSize
+                );
+
+            glm::vec2 p1 =
+                WorldToScreen(
+                    m_DragStartPos + axis,
+                    m_Camera->GetViewProjection(),
+                    m_VpPos,
+                    m_VpSize
+                );
+
+            glm::vec2 dir =
+                p1 - p0;
+
+            float len =
+                glm::length(dir);
+
+            if (len < 5)
+                return;
+
+            dir /= len;
+
+            float amount =
+                glm::dot(
+                    px -
+                    m_DragStartPx,
+                    dir
+                ) * 0.01f;
+
+            tf.Scale =
+                m_DragStartScale;
+
+            tf.Scale[m_DragAxis] =
+                std::max(
+                    0.05f,
+                    m_DragStartScale[m_DragAxis]
+                    +
+                    amount
+                );
+        }
     }
+
     void EndGizmoDrag() { m_DragAxis = -1; }
     bool IsDraggingGizmo() const { return m_DragAxis >= 0; }
 
@@ -260,8 +660,6 @@ public:
         m_Camera = std::make_shared<Pondo::Camera>(60.0f, 1280.0f / 720.0f, 0.1f, 1000.0f);
         m_Shader = std::make_shared<Pondo::Shader>(s_VertSrc, s_FragSrc);
         m_FlatShader = std::make_shared<Pondo::Shader>(s_FlatVertSrc, s_FlatFragSrc);
-        m_Grid.Build(50, 1);
-        m_Arrow.Build();
         m_Scene = std::make_unique<Pondo::Scene>("Main Scene");
 
         SpawnEntity("Cube", Pondo::Mesh::CreateCube(), { 0.8f,0.35f,0.2f,1 }, { 0,0.5f,0 });
@@ -276,7 +674,13 @@ public:
     }
 
     void OnUpdate(Pondo::Timestep ts) override {
-        if (!m_ViewportFocused) return;
+        // Block camera movement while ImGui owns the keyboard or mouse
+        if (!m_ViewportFocused)
+        {
+            m_FirstMouseLook = true;
+            return;
+        }
+
         float spd = 5.0f * ts.GetSeconds();
         float sens = 50.0f * ts.GetSeconds();
         glm::vec3 pos = m_Camera->GetPosition();
@@ -303,6 +707,13 @@ public:
 
     void OnRender() override {
         if (!m_Framebuffer) return;
+
+        if (!m_Initialized) {
+            m_Grid.Build(50, 1);
+            m_Arrow.Build();
+            m_Initialized = true;
+        }
+
         m_Framebuffer->Bind();
         Pondo::Renderer::SetClearColor(0.12f, 0.12f, 0.13f, 1.0f);
         Pondo::Renderer::Clear();
@@ -328,9 +739,9 @@ public:
             glLineWidth(2.0f);
             m_FlatShader->Bind();
             m_FlatShader->SetMat4("u_ViewProjection", m_Camera->GetViewProjection());
-            m_FlatShader->SetMat4("u_Transform",
-                glm::translate(glm::mat4(1), tf.Position) *
-                glm::scale(glm::mat4(1), tf.Scale * 1.05f));
+            glm::mat4 transform = tf.GetTransform();
+            transform = transform * glm::scale(glm::mat4(1), glm::vec3(1.05f));
+            m_FlatShader->SetMat4("u_Transform", transform);
             m_FlatShader->SetFloat4("u_Color", { 1,0.85f,0.1f,1 });
             auto* mc = m_SelectedEntity->GetMesh();
             if (mc && mc->MeshData) {
@@ -357,19 +768,103 @@ public:
     }
 
 private:
-    void DrawGizmo() {
-        glm::vec3 o = m_SelectedEntity->GetTransform().Position;
-        float scale = glm::length(m_Camera->GetPosition() - o) * 0.15f;
-        glLineWidth(3.0f); glDisable(GL_DEPTH_TEST);
-        struct Ax { glm::vec3 axis; glm::vec4 col, hov; };
-        Ax axes[3] = {
-            {{1,0,0},{0.95f,0.25f,0.25f,1},{1,0.6f,0.6f,1}},
-            {{0,1,0},{0.25f,0.90f,0.25f,1},{0.6f,1,0.6f,1}},
-            {{0,0,1},{0.25f,0.45f,0.95f,1},{0.6f,0.7f,1,1}},
+    void DrawGizmo()
+    {
+        if (!m_SelectedEntity)
+            return;
+
+        // Move / Rotate / Scale
+        if (Pondo::Input::IsKeyPressed(GLFW_KEY_1))
+            m_GizmoMode = 0;
+
+        if (Pondo::Input::IsKeyPressed(GLFW_KEY_2))
+            m_GizmoMode = 1;
+
+        if (Pondo::Input::IsKeyPressed(GLFW_KEY_3))
+            m_GizmoMode = 2;
+
+        glm::vec3 origin =
+            m_SelectedEntity
+            ->GetTransform()
+            .Position;
+
+        float scale =
+            glm::length(
+                m_Camera->GetPosition()
+                - origin
+            ) * 0.15f;
+
+        glDisable(GL_DEPTH_TEST);
+
+        struct Axis
+        {
+            glm::vec3 dir;
+            glm::vec4 color;
+            glm::vec4 active;
         };
-        for (int i = 0; i < 3; ++i)
-            DrawArrow(o, axes[i].axis, scale, m_DragAxis == i ? axes[i].hov : axes[i].col);
-        glLineWidth(1.0f); glEnable(GL_DEPTH_TEST);
+
+        Axis axes[3] =
+        {
+            {{1,0,0},{1,0.2f,0.2f,1},{1,0.6f,0.6f,1}},
+            {{0,1,0},{0.2f,1,0.2f,1},{0.6f,1,0.6f,1}},
+            {{0,0,1},{0.2f,0.4f,1,1},{0.6f,0.8f,1,1}}
+        };
+
+        for (int i = 0; i < 3; i++)
+        {
+            glm::vec4 col =
+                (m_DragAxis == i)
+                ? axes[i].active
+                : axes[i].color;
+
+            glm::vec3 tip =
+                origin +
+                axes[i].dir *
+                scale;
+
+            //--------------------------------------------------
+            // MOVE → arrows
+            //--------------------------------------------------
+
+            if (m_GizmoMode == 0)
+            {
+                DrawArrow(
+                    origin,
+                    axes[i].dir,
+                    scale,
+                    col
+                );
+            }
+
+            //--------------------------------------------------
+            // ROTATE → axis lines
+            //--------------------------------------------------
+
+            else if (m_GizmoMode == 1)
+            {
+                DrawRotationCircle(
+                    origin,
+                    axes[i].dir,
+                    scale,
+                    col
+                );
+            }
+
+            //--------------------------------------------------
+            // SCALE → dots
+            //--------------------------------------------------
+
+            else
+            {
+                DrawScaleDot(
+                    tip,
+                    scale,
+                    col
+                );
+            }
+        }
+
+        glEnable(GL_DEPTH_TEST);
     }
 
     void DrawArrow(const glm::vec3& origin, const glm::vec3& axis,
@@ -378,13 +873,145 @@ private:
         glm::vec3 up = { 0,1,0 };
         glm::mat4 rot = glm::mat4(1);
         float d = glm::dot(up, axis);
-        if (d < -0.9999f)      rot = glm::rotate(glm::mat4(1), glm::pi<float>(), glm::vec3(1, 0, 0));
-        else if (d < 0.9999f)  rot = glm::rotate(glm::mat4(1), glm::acos(glm::clamp(d, -1.f, 1.f)),
+        if (d < -0.9999f)     rot = glm::rotate(glm::mat4(1), glm::pi<float>(), glm::vec3(1, 0, 0));
+        else if (d < 0.9999f) rot = glm::rotate(glm::mat4(1), glm::acos(glm::clamp(d, -1.f, 1.f)),
             glm::normalize(glm::cross(up, axis)));
         glm::mat4 t = glm::translate(glm::mat4(1), origin) * rot * glm::scale(glm::mat4(1), glm::vec3(scale));
         m_FlatShader->SetMat4("u_Transform", t);
         m_FlatShader->SetFloat4("u_Color", color);
         m_Arrow.Draw();
+    }
+
+    void DrawRotationCircle(
+        const glm::vec3& origin,
+        const glm::vec3& axis,
+        float scale,
+        const glm::vec4& color)
+    {
+        constexpr int SEGMENTS = 48;
+
+        std::vector<float> verts;
+
+        float radius =
+            scale * 0.9f;
+
+        glm::vec3 right;
+        glm::vec3 up;
+
+        // choose plane perpendicular to axis
+        if (axis.x != 0)
+        {
+            right = { 0,1,0 };
+            up = { 0,0,1 };
+        }
+        else if (axis.y != 0)
+        {
+            right = { 1,0,0 };
+            up = { 0,0,1 };
+        }
+        else
+        {
+            right = { 1,0,0 };
+            up = { 0,1,0 };
+        }
+
+        for (int i = 0; i <= SEGMENTS; i++)
+        {
+            float a =
+                glm::two_pi<float>() *
+                ((float)i / SEGMENTS);
+
+            glm::vec3 p =
+                origin +
+                right * cos(a) * radius +
+                up * sin(a) * radius;
+
+            verts.push_back(p.x);
+            verts.push_back(p.y);
+            verts.push_back(p.z);
+        }
+
+        auto vb =
+            std::make_shared<Pondo::VertexBuffer>(
+                verts.data(),
+                (uint32_t)(
+                    verts.size()
+                    * sizeof(float)
+                    )
+            );
+
+        auto va =
+            std::make_shared<Pondo::VertexArray>();
+
+        va->AddVertexBuffer(vb);
+
+        m_FlatShader->Bind();
+
+        m_FlatShader->SetMat4(
+            "u_Transform",
+            glm::mat4(1)
+        );
+
+        m_FlatShader->SetFloat4(
+            "u_Color",
+            color
+        );
+
+        va->Bind();
+
+        glLineWidth(4);
+
+        glDrawArrays(
+            GL_LINE_STRIP,
+            0,
+            SEGMENTS + 1
+        );
+
+        va->Unbind();
+
+        glLineWidth(1);
+    }
+
+    void DrawScaleDot(
+        const glm::vec3& pos,
+        float size,
+        const glm::vec4& color)
+    {
+        m_FlatShader->Bind();
+
+        glm::mat4 transform =
+            glm::translate(
+                glm::mat4(1.0f),
+                pos
+            ) *
+            glm::scale(
+                glm::mat4(1.0f),
+                glm::vec3(size * 0.08f)
+            );
+
+        m_FlatShader->SetMat4(
+            "u_Transform",
+            transform
+        );
+
+        m_FlatShader->SetFloat4(
+            "u_Color",
+            color
+        );
+
+        glPointSize(18.0f);
+
+        m_Arrow.VA->Bind();
+
+        glDrawArrays(
+            GL_POINTS,
+            0,
+            1
+        );
+
+        m_Arrow.VA->Unbind();
+
+        glPointSize(1.0f);
     }
 
     std::shared_ptr<Pondo::Camera>      m_Camera;
@@ -393,16 +1020,32 @@ private:
     std::unique_ptr<Pondo::Scene>       m_Scene;
     Pondo::Entity* m_SelectedEntity = nullptr;
     GridRenderer m_Grid; ArrowGizmo m_Arrow;
-    bool  m_ViewportFocused = false, m_FirstMouseLook = true;
+    bool m_ViewportFocused = false, m_FirstMouseLook = true, m_Initialized = false;
     float m_LastMouseX = 0, m_LastMouseY = 0;
     glm::vec2 m_VpPos = { 0,0 }, m_VpSize = { 1280,720 };
     int m_DragAxis = -1;
+
+    // 0 Move
+    // 1 Rotate
+    // 2 Scale
+    int m_GizmoMode = 0;
+
     glm::vec2 m_DragStartPx = {};
+
     glm::vec3 m_DragStartPos = {};
+    glm::vec3 m_DragStartScale = {};
+    glm::vec3 m_DragStartRot = {};
 };
 
 // -------------------------------------------------------
-//  EditorLayer  —  manually feeds ImGuiIO each frame
+//  EditorLayer
+//
+//  Pure manual ImGuiIO — zero GLFW backend.
+//  Mouse polling stays identical to your original (which
+//  already worked for picking/dragging).
+//  The only additions are AddKeyEvent() and AddInputCharacter()
+//  forwarded through Pondo's own event system — the two pieces
+//  that were missing and caused buttons/inputs to be dead.
 // -------------------------------------------------------
 
 class EditorLayer : public Pondo::Layer {
@@ -428,10 +1071,9 @@ public:
         ImGuiIO& io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
         io.DisplaySize = { (float)w, (float)h };
-        io.DisplayFramebufferScale = { 1,1 };
+        io.DisplayFramebufferScale = { 1, 1 };
         io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;
-        io.BackendPlatformName = "pondo_glfw_manual";
-        // KeyMap was removed in ImGui 1.87 — keys are handled via AddKeyEvent now.
+        io.BackendPlatformName = "pondo_manual";
 
         ImGui::StyleColorsDark();
         ImGuiStyle& s = ImGui::GetStyle();
@@ -445,11 +1087,8 @@ public:
         s.Colors[ImGuiCol_Button] = { 0.20f,0.35f,0.55f,1 };
         s.Colors[ImGuiCol_ButtonHovered] = { 0.26f,0.47f,0.70f,1 };
 
-        // Only init the OpenGL renderer backend — no GLFW backend at all
+        // Only the OpenGL renderer backend — no GLFW backend at all
         ImGui_ImplOpenGL3_Init("#version 450");
-
-        printf("[INIT] m_Window = %p\n", (void*)m_Window);
-        fflush(stdout);
     }
 
     void OnDetach() override {
@@ -457,10 +1096,66 @@ public:
         ImGui::DestroyContext();
     }
 
+    // Forward Pondo events into ImGui.
+    // Mouse buttons, scroll, keyboard, and typed characters all come
+    // through here — Pondo's own callbacks are untouched.
     void OnEvent(Pondo::Event& e) override {
+        ImGuiIO& io = ImGui::GetIO();
         Pondo::EventDispatcher d(e);
-        d.Dispatch<Pondo::WindowResizeEvent>([](Pondo::WindowResizeEvent& ev) {
-            ImGui::GetIO().DisplaySize = { (float)ev.GetWidth(), (float)ev.GetHeight() };
+
+        d.Dispatch<Pondo::WindowResizeEvent>([&io](Pondo::WindowResizeEvent& ev) {
+            io.DisplaySize = { (float)ev.GetWidth(), (float)ev.GetHeight() };
+            return false;
+            });
+
+        d.Dispatch<Pondo::MouseButtonPressedEvent>([&io](Pondo::MouseButtonPressedEvent& ev) {
+            int btn = ev.GetMouseButton();
+            if (btn >= 0 && btn < 5) io.AddMouseButtonEvent(btn, true);
+            return false;
+            });
+
+        d.Dispatch<Pondo::MouseButtonReleasedEvent>([&io](Pondo::MouseButtonReleasedEvent& ev) {
+            int btn = ev.GetMouseButton();
+            if (btn >= 0 && btn < 5) io.AddMouseButtonEvent(btn, false);
+            return false;
+            });
+
+        d.Dispatch<Pondo::MouseScrolledEvent>([&io](Pondo::MouseScrolledEvent& ev) {
+            io.AddMouseWheelEvent(ev.GetXOffset(), ev.GetYOffset());
+            return false;
+            });
+
+        d.Dispatch<Pondo::KeyPressedEvent>([this, &io](Pondo::KeyPressedEvent& ev)
+            {
+                ImGuiKey key = GlfwKeyToImGui(ev.GetKeyCode());
+
+                if (key != ImGuiKey_None)
+                    io.AddKeyEvent(key, true);
+
+                io.AddKeyEvent(ImGuiMod_Ctrl,
+                    Pondo::Input::IsKeyPressed(GLFW_KEY_LEFT_CONTROL) ||
+                    Pondo::Input::IsKeyPressed(GLFW_KEY_RIGHT_CONTROL));
+
+                io.AddKeyEvent(ImGuiMod_Shift,
+                    Pondo::Input::IsKeyPressed(GLFW_KEY_LEFT_SHIFT) ||
+                    Pondo::Input::IsKeyPressed(GLFW_KEY_RIGHT_SHIFT));
+
+                io.AddKeyEvent(ImGuiMod_Alt,
+                    Pondo::Input::IsKeyPressed(GLFW_KEY_LEFT_ALT) ||
+                    Pondo::Input::IsKeyPressed(GLFW_KEY_RIGHT_ALT));
+
+                return false;
+            });
+
+        d.Dispatch<Pondo::KeyReleasedEvent>([&io](Pondo::KeyReleasedEvent& ev) {
+            ImGuiKey imkey = GlfwKeyToImGui(ev.GetKeyCode());
+            if (imkey != ImGuiKey_None) io.AddKeyEvent(imkey, false);
+            return false;
+            });
+
+        // KeyTypedEvent carries the Unicode codepoint — feeds InputText
+        d.Dispatch<Pondo::KeyTypedEvent>([&io](Pondo::KeyTypedEvent& ev) {
+            io.AddInputCharacter((unsigned int)ev.GetKeyCode());
             return false;
             });
     }
@@ -469,44 +1164,22 @@ public:
         int w = Pondo::Application::Get().GetWindow().GetWidth();
         int h = Pondo::Application::Get().GetWindow().GetHeight();
 
-        // ── Manually populate ImGuiIO from GLFW ──────────────────────
-        // This is what imgui_impl_glfw normally does, but by doing it
-        // ourselves we avoid every callback / context-ordering problem.
         ImGuiIO& io = ImGui::GetIO();
 
+        // ── Feed ImGuiIO for this frame ───────────────────────────────
         io.DisplaySize = { (float)w, (float)h };
         io.DisplayFramebufferScale = { 1, 1 };
 
-        // Delta time
         float now = (float)glfwGetTime();
         io.DeltaTime = (m_LastTime > 0.0f) ? (now - m_LastTime) : (1.0f / 60.0f);
         if (io.DeltaTime <= 0.0f) io.DeltaTime = 1.0f / 60.0f;
         m_LastTime = now;
 
-        // Use the engine's own Input system — it calls glfwGetCursorPos
-        // on the application window which is guaranteed to be correct.
+        // Mouse position — poll directly, same as your original
         {
             auto [mx, my] = Pondo::Input::GetMousePosition();
-            io.MousePos = { mx, my };
+            io.AddMousePosEvent(mx, my);
         }
-
-        // Mouse buttons — poll current state AND detect click edges ourselves
-        // because ImGui::IsMouseClicked requires seeing a false->true transition.
-        for (int i = 0; i < 5; ++i) {
-            // A press is registered if GLFW reports it OR if we haven't yet
-            // cleared a queued press from a callback (not used here, but safe).
-            io.MouseDown[i] = glfwGetMouseButton(m_Window, i) == GLFW_PRESS;
-        }
-
-        // Keyboard modifiers
-        io.KeyCtrl = glfwGetKey(m_Window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS
-            || glfwGetKey(m_Window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS;
-        io.KeyShift = glfwGetKey(m_Window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS
-            || glfwGetKey(m_Window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS;
-        io.KeyAlt = glfwGetKey(m_Window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS
-            || glfwGetKey(m_Window, GLFW_KEY_RIGHT_ALT) == GLFW_PRESS;
-        io.KeySuper = glfwGetKey(m_Window, GLFW_KEY_LEFT_SUPER) == GLFW_PRESS
-            || glfwGetKey(m_Window, GLFW_KEY_RIGHT_SUPER) == GLFW_PRESS;
 
         // ── Begin frame ───────────────────────────────────────────────
         ImGui_ImplOpenGL3_NewFrame();
@@ -514,7 +1187,7 @@ public:
 
         // ── Menu bar ─────────────────────────────────────────────────
         ImGui::SetNextWindowPos({ 0,0 });
-        ImGui::SetNextWindowSize({ (float)w,0 });
+        ImGui::SetNextWindowSize({ (float)w, 0 });
         ImGui::SetNextWindowBgAlpha(0.95f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
@@ -554,8 +1227,8 @@ public:
 
         // ── Scene panel ──────────────────────────────────────────────
         if (m_ShowScene) {
-            ImGui::SetNextWindowPos({ 0,topY });
-            ImGui::SetNextWindowSize({ sideW,contentH });
+            ImGui::SetNextWindowPos({ 0, topY });
+            ImGui::SetNextWindowSize({ sideW, contentH });
             ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
             ImGui::Begin("Scene##panel", nullptr,
                 ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
@@ -607,6 +1280,10 @@ public:
                     ImGui::Text("Yaw: %.1f  Pitch: %.1f", cam->GetYaw(), cam->GetPitch());
                 }
                 ImGui::Separator();
+                ImGui::Text("Gizmo:");
+                ImGui::Text("1 Move");
+                ImGui::Text("2 Rotate");
+                ImGui::Text("3 Scale");
             }
 
             if (m_ShowProps) {
@@ -651,70 +1328,120 @@ public:
             ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoBringToFrontOnFocus);
         ImGui::PopStyleVar(2);
 
-        m_SceneLayer->SetViewportFocused(ImGui::IsWindowFocused() || ImGui::IsWindowHovered());
+        // Viewport is focused when the mouse is over it AND ImGui doesn't
+        // want to capture the mouse for its own panels
+        bool vpHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
+
+        m_SceneLayer->SetViewportFocused(vpHovered);
 
         ImVec2 contentPos = ImGui::GetCursorScreenPos();
         ImVec2 panelSize = ImGui::GetContentRegionAvail();
 
-        if (panelSize.x > 0 && panelSize.y > 0) {
-            unsigned pw = (unsigned)panelSize.x, ph = (unsigned)panelSize.y;
-            if (pw != m_Framebuffer->GetSpec().Width || ph != m_Framebuffer->GetSpec().Height) {
+        if (panelSize.x > 0 && panelSize.y > 0)
+        {
+            unsigned pw = (unsigned)panelSize.x;
+            unsigned ph = (unsigned)panelSize.y;
+
+            if (
+                pw != m_Framebuffer->GetSpec().Width ||
+                ph != m_Framebuffer->GetSpec().Height
+                )
+            {
                 m_Framebuffer->Resize(pw, ph);
+
                 Pondo::WindowResizeEvent ev(pw, ph);
+
                 m_SceneLayer->OnEvent(ev);
             }
-            m_SceneLayer->SetViewportRect(contentPos.x, contentPos.y, panelSize.x, panelSize.y);
 
-            ImGui::Image((ImTextureID)(uintptr_t)m_Framebuffer->GetColorAttachmentID(),
-                panelSize, { 0,1 }, { 1,0 });
+            m_SceneLayer->SetViewportRect(
+                contentPos.x,
+                contentPos.y,
+                panelSize.x,
+                panelSize.y
+            );
 
-            glm::vec2 mouse = { io.MousePos.x, io.MousePos.y };
+            ImGui::Image(
+                (ImTextureID)(uintptr_t)
+                m_Framebuffer->GetColorAttachmentID(),
+                panelSize,
+                { 0,1 },
+                { 1,0 }
+            );
 
-            // Do NOT use IsItemHovered() — NoBringToFrontOnFocus keeps the
-            // viewport behind side panels in ImGui's Z-order, so IsItemHovered
-            // always returns false even when the mouse is visually over it.
-            // Test the viewport rect directly instead.
-            bool lmbDown = Pondo::Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT);
-            static int dbgFrame = 0;
-            if (++dbgFrame % 60 == 0) {
-                printf("[FRAME] lmbDown=%d mouse=(%.0f,%.0f) vp=(%.0f,%.0f)+(%.0f,%.0f)\n",
-                    (int)lmbDown, mouse.x, mouse.y,
-                    contentPos.x, contentPos.y, panelSize.x, panelSize.y);
-                fflush(stdout);
+            glm::vec2 mouse =
+            {
+                io.MousePos.x,
+                io.MousePos.y
+            };
+
+            bool overViewport =
+                mouse.x >= contentPos.x &&
+                mouse.x < contentPos.x + panelSize.x &&
+                mouse.y >= contentPos.y &&
+                mouse.y < contentPos.y + panelSize.y;
+
+            bool lmbDown =
+                io.MouseDown[0];
+
+            bool lmbClicked =
+                io.MouseClicked[0];
+
+            bool rmbDown =
+                io.MouseDown[1];
+
+            bool dragging =
+                m_SceneLayer->IsDraggingGizmo();
+
+            // viewport focus
+            m_SceneLayer->SetViewportFocused(
+                overViewport &&
+                !dragging
+            );
+
+            // update active drag
+            if (dragging)
+            {
+                if (lmbDown)
+                {
+                    m_SceneLayer->UpdateGizmoDrag(
+                        mouse
+                    );
+                }
+                else
+                {
+                    m_SceneLayer->EndGizmoDrag();
+                }
             }
-            bool overViewport = mouse.x >= contentPos.x
-                && mouse.x < contentPos.x + panelSize.x
-                && mouse.y >= contentPos.y
-                && mouse.y < contentPos.y + panelSize.y;
 
-            // Detect left-click leading edge ourselves (was up last frame, down now)
-            bool lmbClicked = lmbDown && !m_PrevLmbDown;
-            m_PrevLmbDown = lmbDown;
+            // start drag or pick
+            else if (
+                overViewport &&
+                lmbClicked &&
+                !rmbDown
+                )
+            {
+                int axis =
+                    m_SceneLayer->GizmoAxisHit(
+                        mouse
+                    );
 
-            // Gizmo drag update
-            if (m_SceneLayer->IsDraggingGizmo()) {
-                if (lmbDown) m_SceneLayer->UpdateGizmoDrag(mouse);
-                else         m_SceneLayer->EndGizmoDrag();
-            }
-
-            // DEBUG — print every frame so we can see what's happening
-            if (lmbDown || lmbClicked || overViewport) {
-                printf("[CLICK] mouse=(%.0f,%.0f) vp=(%.0f,%.0f,%.0f,%.0f) over=%d lmbDown=%d lmbClicked=%d\n",
-                    mouse.x, mouse.y,
-                    contentPos.x, contentPos.y, contentPos.x + panelSize.x, contentPos.y + panelSize.y,
-                    (int)overViewport, (int)lmbDown, (int)lmbClicked);
-                fflush(stdout);
-            }
-
-            // Left click in viewport: gizmo first, then entity pick
-            if (overViewport && lmbClicked && !m_SceneLayer->IsDraggingGizmo()) {
-                printf("[PICK] Trying to pick at mouse=(%.0f,%.0f)\n", mouse.x, mouse.y);
-                fflush(stdout);
-                int axis = m_SceneLayer->GizmoAxisHit(mouse);
-                if (axis >= 0) m_SceneLayer->BeginGizmoDrag(axis, mouse);
-                else           m_SceneLayer->TryPickEntity(mouse);
+                if (axis >= 0)
+                {
+                    m_SceneLayer->BeginGizmoDrag(
+                        axis,
+                        mouse
+                    );
+                }
+                else
+                {
+                    m_SceneLayer->TryPickEntity(
+                        mouse
+                    );
+                }
             }
         }
+
         ImGui::End();
 
         // ── Flush ─────────────────────────────────────────────────────
@@ -728,7 +1455,7 @@ private:
     void CreateEntity(int meshType) {
         static int count = 0;
         const char* names[] = { "Cube","Sphere","Plane" };
-        glm::vec4 colors[] = { {0.8f,0.35f,0.2f,1},{0.2f,0.55f,0.85f,1},{0.55f,0.55f,0.55f,1} };
+        glm::vec4   colors[] = { {0.8f,0.35f,0.2f,1},{0.2f,0.55f,0.85f,1},{0.55f,0.55f,0.55f,1} };
         std::shared_ptr<Pondo::Mesh> mesh;
         switch (meshType) {
         case 1:  mesh = Pondo::Mesh::CreateSphere();    break;
@@ -745,7 +1472,6 @@ private:
     std::shared_ptr<Pondo::Framebuffer> m_Framebuffer;
     SceneLayer* m_SceneLayer = nullptr;
     float                               m_LastTime = 0.0f;
-    bool m_PrevLmbDown = false;
     bool m_ShowScene = true, m_ShowProps = true, m_ShowStats = true;
 };
 
@@ -756,7 +1482,7 @@ private:
 class Sandbox : public Pondo::Application {
 public:
     Sandbox() {
-        gladLoadGLLoader((GLADloadproc)Pondo::Application::GetProcAddress);
+        Pondo::Application::InitGlad();
         m_SceneLayer = new SceneLayer();
         m_EditorLayer = new EditorLayer(m_SceneLayer);
         PushLayer(m_SceneLayer);
