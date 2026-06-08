@@ -88,6 +88,9 @@
     <ClInclude Include="src\Pondo\Scene\Scene.h">
       <Filter>Pondo\Scene</Filter>
     </ClInclude>
+    <ClInclude Include="src\Pondo\Scene\SceneSerializer.h">
+      <Filter>Pondo\Scene</Filter>
+    </ClInclude>
     <ClInclude Include="src\Pondo\Timestep.h">
       <Filter>Pondo</Filter>
     </ClInclude>
@@ -142,6 +145,9 @@
       <Filter>Pondo\Scene</Filter>
     </ClCompile>
     <ClCompile Include="src\Pondo\Scene\Scene.cpp">
+      <Filter>Pondo\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Pondo\Scene\SceneSerializer.cpp">
       <Filter>Pondo\Scene</Filter>
     </ClCompile>
     <ClCompile Include="src\Pondo\Window.cpp">

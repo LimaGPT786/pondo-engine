@@ -81,8 +81,8 @@ project "Pondo"
 	objdir    ("%{wks.location}/bin-int/" .. outputdir .. "/%{prj.name}")
 
 	files {
-		"%{prj.name}/src/**.h",
-		"%{prj.name}/src/**.cpp"
+		"Pondo/src/**.h",
+		"Pondo/src/**.cpp"
 	}
 
 	includedirs {
@@ -112,7 +112,8 @@ project "Pondo"
 		}
 
 		postbuildcommands {
-			"{COPYFILE} %{cfg.buildtarget.relpath} ../bin/" .. outputdir .. "/Sandbox"
+			"{MKDIR} ../bin/" .. outputdir .. "/Sandbox",
+			"{COPYFILE} %{cfg.buildtarget.relpath} ../bin/" .. outputdir .. "/Sandbox/"
 		}
 
 	filter "configurations:Debug"
@@ -139,8 +140,8 @@ project "Sandbox"
 	objdir    ("%{wks.location}/bin-int/" .. outputdir .. "/%{prj.name}")
 
 	files {
-		"%{prj.name}/src/**.h",
-		"%{prj.name}/src/**.cpp"
+		"Sandbox/src/**.h",
+		"Sandbox/src/**.cpp"
 	}
 
 	includedirs {

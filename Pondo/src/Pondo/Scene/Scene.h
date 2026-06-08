@@ -30,7 +30,7 @@ namespace Pondo {
 
         const std::string& GetName() const { return m_Name; }
         void SetName(const std::string& name) { m_Name = name; }
-
+        void Clear() { m_Entities.clear(); }
     private:
         std::string m_Name;
         std::vector<std::unique_ptr<Entity>> m_Entities;

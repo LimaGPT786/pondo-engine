@@ -9,7 +9,14 @@
 #include "Pondo/Events/ApplicationEvents.h"
 #include "Pondo/Events/KeyEvents.h"
 #include "Pondo/Events/MouseEvents.h"
+#include "Pondo/Scene/SceneSerializer.h"
 #include <algorithm>
+#include <type_traits>
+#include <iostream>
+
+#include <windows.h>
+#include <commdlg.h>
+#pragma comment(lib, "comdlg32.lib")
 
 // No imgui_impl_glfw — we feed ImGuiIO ourselves so Pondo's GLFW
 // callbacks are never touched.  Only the OpenGL *renderer* backend
@@ -228,6 +235,66 @@ struct ArrowGizmo {
     }
 };
 
+class ICommand
+{
+public:
+    virtual ~ICommand() = default;
+
+    virtual void Undo() = 0;
+    virtual void Redo() = 0;
+};
+
+class TransformCommand
+    : public ICommand
+{
+public:
+
+    using TransformType =
+        decltype(
+            std::declval<Pondo::Entity>()
+            .GetTransform()
+            );
+
+    TransformCommand(
+        Pondo::Entity* entity,
+        const TransformType& before,
+        const TransformType& after
+    )
+        :
+        m_Entity(entity),
+        m_Before(before),
+        m_After(after)
+    {
+    }
+
+    void Undo() override
+    {
+        if (m_Entity)
+        {
+            m_Entity
+                ->GetTransform()
+                = m_Before;
+        }
+    }
+
+    void Redo() override
+    {
+        if (m_Entity)
+        {
+            m_Entity
+                ->GetTransform()
+                = m_After;
+        }
+    }
+
+private:
+
+    Pondo::Entity* m_Entity;
+
+    TransformType m_Before;
+    TransformType m_After;
+};
+
 // -------------------------------------------------------
 //  SceneLayer
 // -------------------------------------------------------
@@ -275,6 +342,17 @@ public:
         m_ScaleIncrement = scale;
     }
 
+    void LoadScene(const std::string& path)
+    {
+        m_SelectedEntity = nullptr;
+        m_Scene->Clear();
+        Pondo::SceneSerializer::Load(m_Scene.get(), path, m_Shader);
+
+        auto& entities = m_Scene->GetEntities();
+        if (!entities.empty())
+            m_SelectedEntity = entities[0].get();
+    }
+
     bool m_EnableSnapping = false;
 
     float m_MoveIncrement = 0.5f;
@@ -285,6 +363,7 @@ public:
     Pondo::Entity* GetSelectedEntity() { return m_SelectedEntity; }
     void           SetSelectedEntity(Pondo::Entity* e) { m_SelectedEntity = e; }
     Pondo::Camera* GetCamera() { return m_Camera.get(); }
+    std::shared_ptr<Pondo::Shader> GetShader() { return m_Shader; }
 
     void TryPickEntity(glm::vec2 px) {
         if (m_VpSize.x <= 0 || m_VpSize.y <= 0) return;
@@ -682,7 +761,15 @@ public:
         }
     }
 
-    void EndGizmoDrag() { m_DragAxis = -1; }
+    bool EndGizmoDrag()
+    {
+        bool dragged =
+            m_DragAxis >= 0;
+
+        m_DragAxis = -1;
+
+        return dragged;
+    }
     bool IsDraggingGizmo() const { return m_DragAxis >= 0; }
 
     Pondo::Entity* DuplicateEntity(
@@ -1137,6 +1224,42 @@ private:
     glm::vec3 m_DragStartRot = {};
 };
 
+static std::string OpenFileDialog()
+{
+    char path[MAX_PATH] = {};
+    OPENFILENAMEA ofn = {};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = nullptr;
+    ofn.lpstrFilter = "Pondo Scene\0*.pondo\0All Files\0*.*\0";
+    ofn.lpstrFile = path;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.lpstrDefExt = "pondo";
+    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+
+    if (GetOpenFileNameA(&ofn))
+        return std::string(path);
+
+    return "";
+}
+
+static std::string SaveFileDialog()
+{
+    char path[MAX_PATH] = {};
+    OPENFILENAMEA ofn = {};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = nullptr;
+    ofn.lpstrFilter = "Pondo Scene\0*.pondo\0All Files\0*.*\0";
+    ofn.lpstrFile = path;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.lpstrDefExt = "pondo";
+    ofn.Flags = OFN_OVERWRITEPROMPT;
+
+    if (GetSaveFileNameA(&ofn))
+        return std::string(path);
+
+    return "";
+}
+
 // -------------------------------------------------------
 //  EditorLayer
 //
@@ -1286,6 +1409,32 @@ public:
         ImGui_ImplOpenGL3_NewFrame();
         ImGui::NewFrame();
 
+		// Ctrl+Z / Ctrl+Y for undo/redo — only if ImGui doesn't already want the keyboard
+        if (
+            io.KeyCtrl &&
+            ImGui::IsKeyPressed(ImGuiKey_Z, false)
+            )
+        {
+            Undo();
+        }
+
+        if (
+            io.KeyCtrl &&
+            ImGui::IsKeyPressed(ImGuiKey_Y, false)
+            )
+        {
+            Redo();
+        }
+
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false))
+        {
+            if (m_CurrentScenePath.empty())
+                m_CurrentScenePath = SaveFileDialog();
+
+            if (!m_CurrentScenePath.empty())
+                Pondo::SceneSerializer::Save(m_SceneLayer->GetScene(), m_CurrentScenePath);
+        }
+
         // ── Menu bar ─────────────────────────────────────────────────
         ImGui::SetNextWindowPos({ 0,0 });
         ImGui::SetNextWindowSize({ (float)w, 0 });
@@ -1299,8 +1448,54 @@ public:
         ImGui::PopStyleVar(2);
 
         if (ImGui::BeginMenuBar()) {
-            if (ImGui::BeginMenu("File")) {
-                if (ImGui::MenuItem("Exit")) Pondo::Application::Get().Close();
+            if (ImGui::BeginMenu("File"))
+            {
+                if (ImGui::MenuItem("Save Scene"))
+                {
+                    std::string path = SaveFileDialog();
+                    if (!path.empty())
+                        Pondo::SceneSerializer::Save(m_SceneLayer->GetScene(), path);
+                }
+
+                if (ImGui::MenuItem("Load Scene"))
+                {
+                    std::string path = OpenFileDialog();
+                    if (!path.empty())
+                        m_SceneLayer->LoadScene(path);
+                }
+
+                if (ImGui::MenuItem("Save", "Ctrl+S"))
+                {
+                    if (m_CurrentScenePath.empty())
+                        m_CurrentScenePath = SaveFileDialog();
+
+                    if (!m_CurrentScenePath.empty())
+                        Pondo::SceneSerializer::Save(m_SceneLayer->GetScene(), m_CurrentScenePath);
+                }
+
+                if (ImGui::MenuItem("Save As"))
+                {
+                    std::string path = SaveFileDialog();
+                    if (!path.empty())
+                    {
+                        m_CurrentScenePath = path;
+                        Pondo::SceneSerializer::Save(m_SceneLayer->GetScene(), path);
+                    }
+                }
+
+                ImGui::Separator();
+
+                if (
+                    ImGui::MenuItem(
+                        "Exit"
+                    )
+                    )
+                {
+                    Pondo::Application
+                        ::Get()
+                        .Close();
+                }
+
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("View")) {
@@ -1438,76 +1633,94 @@ public:
                     ImGui::Separator();
 
 
-                    ImGui::Text("Transform");
-
                     auto& tf = sel->GetTransform();
 
-                    float pos[3] =
-                    {
-                        tf.Position.x,
-                        tf.Position.y,
-                        tf.Position.z
-                    };
+                    auto original = tf;
 
-                    if (ImGui::InputFloat3(
+                    if (
+                        ImGui::IsWindowFocused() &&
+                        !m_WasEditingTransform
+                        )
+                    {
+                        m_TransformBefore =
+                            tf;
+                    }
+
+                    bool changed = false;
+
+                    changed |= ImGui::InputFloat3(
                         "Position",
-                        pos,
+                        &tf.Position.x,
                         "%.3f"
-                    ))
-                    {
-                        tf.Position =
-                        {
-                            pos[0],
-                            pos[1],
-                            pos[2]
-                        };
-                    }
+                    );
 
-                    float rot[3] =
-                    {
-                        tf.Rotation.x,
-                        tf.Rotation.y,
-                        tf.Rotation.z
-                    };
-
-                    if (ImGui::InputFloat3(
+                    changed |= ImGui::InputFloat3(
                         "Rotation",
-                        rot,
+                        &tf.Rotation.x,
                         "%.2f"
-                    ))
-                    {
-                        tf.Rotation =
-                        {
-                            rot[0],
-                            rot[1],
-                            rot[2]
-                        };
-                    }
+                    );
 
-                    float scl[3] =
-                    {
-                        tf.Scale.x,
-                        tf.Scale.y,
-                        tf.Scale.z
-                    };
-
-                    if (ImGui::InputFloat3(
+                    changed |= ImGui::InputFloat3(
                         "Scale",
-                        scl,
+                        &tf.Scale.x,
                         "%.3f"
-                    ))
-                    {
-                        scl[0] = std::max(0.001f, scl[0]);
-                        scl[1] = std::max(0.001f, scl[1]);
-                        scl[2] = std::max(0.001f, scl[2]);
+                    );
 
-                        tf.Scale =
-                        {
-                            scl[0],
-                            scl[1],
-                            scl[2]
-                        };
+                    tf.Scale.x =
+                        std::max(
+                            0.001f,
+                            tf.Scale.x
+                        );
+
+                    tf.Scale.y =
+                        std::max(
+                            0.001f,
+                            tf.Scale.y
+                        );
+
+                    tf.Scale.z =
+                        std::max(
+                            0.001f,
+                            tf.Scale.z
+                        );
+
+                    if (
+                        changed
+                        )
+                    {
+                        m_WasEditingTransform =
+                            true;
                     }
+
+                    if (
+                        m_WasEditingTransform &&
+                        ImGui::IsMouseReleased(
+                            ImGuiMouseButton_Left
+                        )
+                        )
+                    {
+                        if (
+                            memcmp(
+                                &m_TransformBefore,
+                                &tf,
+                                sizeof(tf)
+                            ) != 0
+                            )
+                        {
+                            Execute(
+                                std::make_unique<
+                                TransformCommand
+                                >(
+                                    sel,
+                                    m_TransformBefore,
+                                    tf
+                                )
+                            );
+                        }
+
+                        m_WasEditingTransform = false;
+                    }
+
                     if (auto* mc = sel->GetMaterial(); mc && mc->Mat) {
                         ImGui::Separator(); ImGui::Text("Material");
                         glm::vec4 col = mc->Mat->GetColor();
@@ -1644,7 +1857,22 @@ public:
                 }
                 else
                 {
-                    m_SceneLayer->EndGizmoDrag();
+                    if (
+                        m_SceneLayer->EndGizmoDrag()
+                        &&
+                        m_SceneLayer->GetSelectedEntity()
+                        )
+                    {
+                        Execute(
+                            std::make_unique<TransformCommand>(
+                                m_SceneLayer->GetSelectedEntity(),
+                                m_TransformBefore,
+                                m_SceneLayer
+                                ->GetSelectedEntity()
+                                ->GetTransform()
+                            )
+                        );
+                    }
                 }
             }
 
@@ -1662,6 +1890,11 @@ public:
 
                 if (axis >= 0)
                 {
+                    m_TransformBefore =
+                        m_SceneLayer
+                        ->GetSelectedEntity()
+                        ->GetTransform();
+
                     m_SceneLayer->BeginGizmoDrag(
                         axis,
                         mouse
@@ -1676,6 +1909,35 @@ public:
             }
         }
 
+        if (m_StatusTimer > 0.0f)
+        {
+            m_StatusTimer -= io.DeltaTime;
+
+            ImGui::SetNextWindowBgAlpha(0.8f);
+
+            ImGui::SetNextWindowPos(
+                {
+                    (float)w * 0.5f - 60,
+                    40
+                }
+            );
+
+            ImGui::Begin(
+                "##status",
+                nullptr,
+                ImGuiWindowFlags_NoDecoration |
+                ImGuiWindowFlags_AlwaysAutoResize |
+                ImGuiWindowFlags_NoMove
+            );
+
+            ImGui::Text(
+                "%s",
+                m_StatusText.c_str()
+            );
+
+            ImGui::End();
+        }
+
         ImGui::End();
 
         // ── Flush ─────────────────────────────────────────────────────
@@ -1684,6 +1946,71 @@ public:
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glEnable(GL_DEPTH_TEST);
     }
+
+    void Execute(
+        std::unique_ptr<ICommand> cmd
+    )
+    {
+        while (
+            (int)m_History.size()
+                >
+            m_HistoryIndex + 1
+            )
+        {
+            m_History.pop_back();
+        }
+
+        cmd->Redo();
+
+        m_History.push_back(
+            std::move(cmd)
+        );
+
+        m_HistoryIndex++;
+    }
+
+    void Undo()
+    {
+        if (m_HistoryIndex < 0)
+            return;
+
+        m_History[
+            m_HistoryIndex
+        ]->Undo();
+
+        m_HistoryIndex--;
+
+        m_StatusText =
+            "Undo";
+
+        m_StatusTimer =
+            1.0f;
+    }
+
+    void Redo()
+    {
+        if (
+            m_HistoryIndex + 1
+            >=
+            (int)m_History.size()
+            )
+            return;
+
+        m_HistoryIndex++;
+
+        m_History[
+            m_HistoryIndex
+        ]->Redo();
+
+        m_StatusText =
+            "Redo";
+
+        m_StatusTimer =
+            1.0f;
+    }
+
+    std::string m_StatusText;
+    float m_StatusTimer = 0.0f;
 
 private:
     void CreateEntity(int meshType)
@@ -1743,15 +2070,36 @@ private:
     }
 
     GLFWwindow* m_Window = nullptr;
+
     std::shared_ptr<Pondo::Framebuffer> m_Framebuffer;
+
     SceneLayer* m_SceneLayer = nullptr;
-    float                               m_LastTime = 0.0f;
-    bool m_ShowScene = true, m_ShowProps = true, m_ShowStats = true;
+
+    float m_LastTime = 0.0f;
+
+    std::string m_CurrentScenePath;
+
+    bool m_ShowScene = true;
+    bool m_ShowProps = true;
+    bool m_ShowStats = true;
+
     bool m_EnableSnapping = false;
 
     float m_MoveIncrement = 0.5f;
     float m_RotateIncrement = 15.0f;
     float m_ScaleIncrement = 0.1f;
+
+
+
+    std::vector<
+        std::unique_ptr<ICommand>
+    > m_History;
+
+    int m_HistoryIndex = -1;
+
+    bool m_WasEditingTransform = false;
+
+    std::remove_reference_t<decltype(std::declval<Pondo::Entity>().GetTransform())> m_TransformBefore{};
 };
 
 // -------------------------------------------------------

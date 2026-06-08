@@ -96,7 +96,8 @@
     <ProjectReference>
     </ProjectReference>
     <PostBuildEvent>
-      <Command>copy /B /Y ..\bin\Debug-windows-x86_64\Pondo\Pondo.dll ..\bin\Debug-windows-x86_64\Sandbox</Command>
+      <Command>IF NOT EXIST ..\bin\Debug-windows-x86_64\Sandbox (mkdir ..\bin\Debug-windows-x86_64\Sandbox)
+copy /B /Y ..\bin\Debug-windows-x86_64\Pondo\Pondo.dll ..\bin\Debug-windows-x86_64\Sandbox</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -125,7 +126,8 @@
     <ProjectReference>
     </ProjectReference>
     <PostBuildEvent>
-      <Command>copy /B /Y ..\bin\Release-windows-x86_64\Pondo\Pondo.dll ..\bin\Release-windows-x86_64\Sandbox</Command>
+      <Command>IF NOT EXIST ..\bin\Release-windows-x86_64\Sandbox (mkdir ..\bin\Release-windows-x86_64\Sandbox)
+copy /B /Y ..\bin\Release-windows-x86_64\Pondo\Pondo.dll ..\bin\Release-windows-x86_64\Sandbox</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Dist|x64'">
@@ -154,7 +156,8 @@
     <ProjectReference>
     </ProjectReference>
     <PostBuildEvent>
-      <Command>copy /B /Y ..\bin\Dist-windows-x86_64\Pondo\Pondo.dll ..\bin\Dist-windows-x86_64\Sandbox</Command>
+      <Command>IF NOT EXIST ..\bin\Dist-windows-x86_64\Sandbox (mkdir ..\bin\Dist-windows-x86_64\Sandbox)
+copy /B /Y ..\bin\Dist-windows-x86_64\Pondo\Pondo.dll ..\bin\Dist-windows-x86_64\Sandbox</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -182,6 +185,7 @@
     <ClInclude Include="src\Pondo\Scene\Components.h" />
     <ClInclude Include="src\Pondo\Scene\Entity.h" />
     <ClInclude Include="src\Pondo\Scene\Scene.h" />
+    <ClInclude Include="src\Pondo\Scene\SceneSerializer.h" />
     <ClInclude Include="src\Pondo\Timestep.h" />
     <ClInclude Include="src\Pondo\Window.h" />
   </ItemGroup>
@@ -202,6 +206,11 @@
     <ClCompile Include="src\Pondo\Renderer\VertexArray.cpp" />
     <ClCompile Include="src\Pondo\Scene\Entity.cpp" />
     <ClCompile Include="src\Pondo\Scene\Scene.cpp" />
+    <ClCompile Include="src\Pondo\Scene\SceneSerializer.cpp">
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">PD_PLATFORM_WINDOWS</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Dist|x64'">PD_PLATFORM_WINDOWS</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PD_PLATFORM_WINDOWS</PreprocessorDefinitions>
+    </ClCompile>
     <ClCompile Include="src\Pondo\Window.cpp" />
   </ItemGroup>
   <ItemGroup>

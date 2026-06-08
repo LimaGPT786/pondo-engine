@@ -4,6 +4,7 @@
 #include <glm/glm.hpp>
 #include <vector>
 #include <memory>
+#include <string>
 
 namespace Pondo {
 
@@ -24,11 +25,12 @@ namespace Pondo {
 
 		unsigned int GetIndexCount()  const { return m_IndexCount; }
 		unsigned int GetVertexCount() const { return m_VertexCount; }
+		const std::string& GetType()  const { return m_Type; }
 
 		static std::shared_ptr<Mesh> CreateCube();
 		static std::shared_ptr<Mesh> CreatePlane(float size = 1.0f);
 		static std::shared_ptr<Mesh> CreateSphere(int stacks = 16, int slices = 16);
-		static std::shared_ptr<Mesh> CreateCylinder(float radius = 0.5f, float height = 1.0f, int segments = 32);
+		static std::shared_ptr<Mesh> CreateCylinder(int slices = 16);
 
 	private:
 		unsigned int m_VAO_ID = 0;
@@ -36,6 +38,7 @@ namespace Pondo {
 		unsigned int m_IBO_ID = 0;
 		unsigned int m_IndexCount = 0;
 		unsigned int m_VertexCount = 0;
+		std::string  m_Type = "Cube";
 	};
 
 }

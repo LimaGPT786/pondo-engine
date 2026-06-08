@@ -91,7 +91,10 @@ namespace Pondo {
 			unsigned int b = f * 4;
 			idx.insert(idx.end(), { b,b + 1,b + 2, b,b + 2,b + 3 });
 		}
-		return std::make_shared<Mesh>(verts, idx);
+
+		auto m = std::make_shared<Mesh>(verts, idx);
+		m->m_Type = "Cube";
+		return m;
 	}
 
 	std::shared_ptr<Mesh> Mesh::CreatePlane(float size)
@@ -104,7 +107,10 @@ namespace Pondo {
 			{{ -h, 0.0f,  h }, { 0,1,0 }, { 0,1 }},
 		};
 		std::vector<unsigned int> idx = { 0,1,2, 0,2,3 };
-		return std::make_shared<Mesh>(verts, idx);
+
+		auto m = std::make_shared<Mesh>(verts, idx);
+		m->m_Type = "Plane";
+		return m;
 	}
 
 	std::shared_ptr<Mesh> Mesh::CreateSphere(int stacks, int slices)
@@ -136,144 +142,68 @@ namespace Pondo {
 				idx.insert(idx.end(), { a, b, a + 1, b, b + 1, a + 1 });
 			}
 		}
-		return std::make_shared<Mesh>(verts, idx);
+
+		auto m = std::make_shared<Mesh>(verts, idx);
+		m->m_Type = "Sphere";
+		return m;
 	}
 
-	std::shared_ptr<Mesh> Mesh::CreateCylinder(
-		float radius,
-		float height,
-		int segments)
+	std::shared_ptr<Mesh> Mesh::CreateCylinder(int slices)
 	{
 		std::vector<Vertex> verts;
 		std::vector<unsigned int> idx;
 
-		float half = height * 0.5f;
+		const float radius = 0.5f;
+		const float halfH = 0.5f;
 
-		// side vertices
-		for (int i = 0; i <= segments; i++)
-		{
-			float t =
-				((float)i / (float)segments)
-				* glm::two_pi<float>();
+		// Side vertices — two rings (bottom + top)
+		for (int i = 0; i <= slices; i++) {
+			float theta = 2.0f * glm::pi<float>() * ((float)i / slices);
+			float c = std::cos(theta);
+			float s = std::sin(theta);
+			glm::vec3 normal = { c, 0.0f, s };
 
-			float x = cos(t) * radius;
-			float z = sin(t) * radius;
-
-			glm::vec3 normal =
-				glm::normalize(
-					glm::vec3(x, 0, z)
-				);
-
-			verts.push_back({
-				{x,-half,z},
-				normal,
-				{(float)i / segments,0}
-				});
-
-			verts.push_back({
-				{x,half,z},
-				normal,
-				{(float)i / segments,1}
-				});
+			// bottom ring
+			verts.push_back({ { c * radius, -halfH, s * radius }, normal, { (float)i / slices, 0.0f } });
+			// top ring
+			verts.push_back({ { c * radius,  halfH, s * radius }, normal, { (float)i / slices, 1.0f } });
 		}
 
-		// side indices
-		for (unsigned int i = 0; i < (unsigned int)segments; i++)
-		{
+		// Side indices
+		for (int i = 0; i < slices; i++) {
 			unsigned int b = i * 2;
-
-			idx.insert(
-				idx.end(),
-				{
-					b,
-					b + 1,
-					b + 2,
-
-					b + 1,
-					b + 3,
-					b + 2
-				}
-			);
+			idx.insert(idx.end(), { b, b + 2, b + 1,  b + 1, b + 2, b + 3 });
 		}
 
-		// top center
-		unsigned int topCenter =
-			(unsigned int)verts.size();
+		// Cap centres
+		unsigned int bottomCentre = (unsigned int)verts.size();
+		verts.push_back({ { 0.0f, -halfH, 0.0f }, { 0,-1,0 }, { 0.5f, 0.5f } });
+		unsigned int topCentre = (unsigned int)verts.size();
+		verts.push_back({ { 0.0f,  halfH, 0.0f }, { 0, 1,0 }, { 0.5f, 0.5f } });
 
-		verts.push_back({
-			{0,half,0},
-			{0,1,0},
-			{0.5f,0.5f}
-			});
+		// Cap rim vertices + indices
+		for (int i = 0; i < slices; i++) {
+			float t0 = 2.0f * glm::pi<float>() * ((float)i / slices);
+			float t1 = 2.0f * glm::pi<float>() * ((float)(i + 1) / slices);
 
-		// bottom center
-		unsigned int bottomCenter =
-			(unsigned int)verts.size();
+			// bottom cap
+			unsigned int b0 = (unsigned int)verts.size();
+			verts.push_back({ { std::cos(t0) * radius, -halfH, std::sin(t0) * radius }, { 0,-1,0 }, { 0.5f + std::cos(t0) * 0.5f, 0.5f + std::sin(t0) * 0.5f } });
+			unsigned int b1 = (unsigned int)verts.size();
+			verts.push_back({ { std::cos(t1) * radius, -halfH, std::sin(t1) * radius }, { 0,-1,0 }, { 0.5f + std::cos(t1) * 0.5f, 0.5f + std::sin(t1) * 0.5f } });
+			idx.insert(idx.end(), { bottomCentre, b1, b0 });
 
-		verts.push_back({
-			{0,-half,0},
-			{0,-1,0},
-			{0.5f,0.5f}
-			});
-
-		unsigned int ringStart =
-			(unsigned int)verts.size();
-
-		for (int i = 0; i < segments; i++)
-		{
-			float t =
-				((float)i / segments)
-				* glm::two_pi<float>();
-
-			float x =
-				cos(t) * radius;
-
-			float z =
-				sin(t) * radius;
-
-			verts.push_back({
-				{x,half,z},
-				{0,1,0},
-				{0,0}
-				});
-
-			verts.push_back({
-				{x,-half,z},
-				{0,-1,0},
-				{0,0}
-				});
+			// top cap
+			unsigned int t0i = (unsigned int)verts.size();
+			verts.push_back({ { std::cos(t0) * radius,  halfH, std::sin(t0) * radius }, { 0, 1,0 }, { 0.5f + std::cos(t0) * 0.5f, 0.5f + std::sin(t0) * 0.5f } });
+			unsigned int t1i = (unsigned int)verts.size();
+			verts.push_back({ { std::cos(t1) * radius,  halfH, std::sin(t1) * radius }, { 0, 1,0 }, { 0.5f + std::cos(t1) * 0.5f, 0.5f + std::sin(t1) * 0.5f } });
+			idx.insert(idx.end(), { topCentre, t0i, t1i });
 		}
 
-		// caps
-		for (unsigned int i = 0; i < (unsigned int)segments; i++)
-		{
-			unsigned int next =
-				(i + 1)
-				%
-				(unsigned int)segments;
-
-			idx.insert(
-				idx.end(),
-				{
-					topCenter,
-					ringStart + i * 2,
-					ringStart + next * 2
-				}
-			);
-
-			idx.insert(
-				idx.end(),
-				{
-					bottomCenter,
-					ringStart + next * 2 + 1,
-					ringStart + i * 2 + 1
-				}
-			);
-		}
-
-		return std::make_shared<Mesh>(
-			verts,
-			idx
-		);
+		auto m = std::make_shared<Mesh>(verts, idx);
+		m->m_Type = "Cylinder";
+		return m;
 	}
+
 }
