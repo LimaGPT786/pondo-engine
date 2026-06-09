@@ -13,6 +13,7 @@ IncludeDir["GLFW"]  = "Pondo/vendor/GLFW/include"
 IncludeDir["glad"]  = "Pondo/vendor/glad/include"
 IncludeDir["glm"]   = "Pondo/vendor/glm"
 IncludeDir["ImGui"] = "Pondo/vendor/imgui"
+IncludeDir["entt"]  = "Pondo/vendor/entt/include"
 
 include "Pondo/vendor/GLFW"
 
@@ -91,7 +92,8 @@ project "Pondo"
 		"%{IncludeDir.GLFW}",
 		"%{IncludeDir.glad}",
 		"%{IncludeDir.glm}",
-		"%{IncludeDir.ImGui}"
+		"%{IncludeDir.ImGui}",
+		"%{IncludeDir.entt}"
 	}
 
 	links {
@@ -150,7 +152,8 @@ project "Sandbox"
 		"%{IncludeDir.GLFW}",
 		"%{IncludeDir.glad}",
 		"%{IncludeDir.glm}",
-		"%{IncludeDir.ImGui}"
+		"%{IncludeDir.ImGui}",
+		"%{IncludeDir.entt}"
 	}
 
 	links {

@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include <entt.hpp>
 
 namespace Pondo {
 
@@ -14,7 +15,7 @@ namespace Pondo {
     class PONDO_API Scene {
     public:
         Scene(const std::string& name = "Untitled Scene");
-        ~Scene() = default;
+        ~Scene();
 
         Scene(const Scene&) = delete;
         Scene& operator=(const Scene&) = delete;
@@ -27,16 +28,20 @@ namespace Pondo {
         Entity* FindEntity(uint32_t id);
         Entity* FindEntityByName(const std::string& name);
 
+        // Returns stable pointers — valid until the entity is destroyed or
+        // the scene is cleared.
         const std::vector<std::unique_ptr<Entity>>& GetEntities() const;
+
         const std::string& GetName() const;
         void SetName(const std::string& name);
         void Clear();
 
     private:
-        std::string m_Name;
-        std::vector<std::unique_ptr<Entity>> m_Entities;
+        std::string                          m_Name;
+        std::unique_ptr<entt::registry>      m_Registry;
+        std::vector<std::unique_ptr<Entity>> m_Entities; // handle wrappers (ordered)
     };
 
 #pragma warning(pop)
 
-}
+} // namespace Pondo

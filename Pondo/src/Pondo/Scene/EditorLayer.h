@@ -67,6 +67,6 @@ private:
     int  m_HistoryIndex = -1;
 
     bool m_WasEditingTransform = false;
-    Pondo::TransformComponent m_TransformBefore{};
+    std::vector<Pondo::TransformComponent> m_TransformsBefore;
 };
 #pragma warning(pop)

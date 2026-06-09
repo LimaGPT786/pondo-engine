@@ -394,8 +394,11 @@ void EditorLayer::OnRender()
                 ImGui::Separator();
                 auto& tf = sel->GetTransform();
 
-                if (ImGui::IsWindowFocused() && !m_WasEditingTransform)
-                    m_TransformBefore = tf;
+                if (ImGui::IsWindowFocused() && !m_WasEditingTransform) {
+                    const auto& sel = m_SceneLayer->GetSelection();
+                    m_TransformsBefore.clear();
+                    for (auto* e : sel) m_TransformsBefore.push_back(e->GetTransform());
+                }
 
                 bool changed = false;
                 changed |= ImGui::DragFloat3("Position", &tf.Position.x, 0.1f,  0.0f, 0.0f, "%.3f");
@@ -408,8 +411,18 @@ void EditorLayer::OnRender()
                 if (changed) m_WasEditingTransform = true;
 
                 if (m_WasEditingTransform && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
-                    if (memcmp(&m_TransformBefore, &tf, sizeof(tf)) != 0)
-                        Execute(std::make_unique<TransformCommand>(sel, m_TransformBefore, tf));
+                    const auto& sel = m_SceneLayer->GetSelection();
+                    if (!m_TransformsBefore.empty()) {
+                        if (sel.size() == 1) {
+                            if (memcmp(&m_TransformsBefore[0], &tf, sizeof(tf)) != 0)
+                                Execute(std::make_unique<TransformCommand>(sel[0], m_TransformsBefore[0], tf));
+                        } else {
+                            std::vector<EntityTransformSnapshot> snaps;
+                            for (size_t i = 0; i < sel.size() && i < m_TransformsBefore.size(); i++)
+                                snaps.push_back({ sel[i], m_TransformsBefore[i], sel[i]->GetTransform() });
+                            Execute(std::make_unique<MultiTransformCommand>(std::move(snaps)));
+                        }
+                    }
                     m_WasEditingTransform = false;
                 }
 
@@ -544,18 +557,29 @@ void EditorLayer::OnRender()
                     m_MoveIncrement, m_RotateIncrement, m_ScaleIncrement);
             }
             else {
-                if (m_SceneLayer->EndGizmoDrag() && m_SceneLayer->GetSelectedEntity())
-                    Execute(std::make_unique<TransformCommand>(
-                        m_SceneLayer->GetSelectedEntity(),
-                        m_TransformBefore,
-                        m_SceneLayer->GetSelectedEntity()->GetTransform()));
+                if (m_SceneLayer->EndGizmoDrag()) {
+                    const auto& sel = m_SceneLayer->GetSelection();
+                    if (sel.size() == 1) {
+                        Execute(std::make_unique<TransformCommand>(
+                            sel[0], m_TransformsBefore[0], sel[0]->GetTransform()));
+                    }
+                    else if (sel.size() > 1) {
+                        std::vector<EntityTransformSnapshot> snaps;
+                        snaps.reserve(sel.size());
+                        for (size_t i = 0; i < sel.size(); i++)
+                            snaps.push_back({ sel[i], m_TransformsBefore[i], sel[i]->GetTransform() });
+                        Execute(std::make_unique<MultiTransformCommand>(std::move(snaps)));
+                    }
+                }
             }
         }
         // Start drag or pick
         else if (overViewport && lmbClicked && !rmbDown) {
             int axis = m_SceneLayer->GizmoAxisHit(mouse);
             if (axis >= 0) {
-                m_TransformBefore = m_SceneLayer->GetSelectedEntity()->GetTransform();
+                const auto& sel = m_SceneLayer->GetSelection();
+                m_TransformsBefore.clear();
+                for (auto* e : sel) m_TransformsBefore.push_back(e->GetTransform());
                 m_SceneLayer->BeginGizmoDrag(axis, mouse);
             }
             else {

@@ -4,16 +4,23 @@
 #include "Components.h"
 #include <string>
 #include <memory>
+#include <entt.hpp>
+
+// Forward-declare the registry so Entity.h doesn't pull in all of entt
+// in every translation unit that includes it.
 
 namespace Pondo {
 
 #pragma warning(push)
 #pragma warning(disable: 4251)
 
+    // Entity is a lightweight handle: an entt entity ID + a pointer back to
+    // the registry that owns it.  All component storage lives in the registry;
+    // Entity methods are thin wrappers around registry get/emplace/remove.
     class PONDO_API Entity {
     public:
         Entity() = default;
-        Entity(const std::string& name);
+        Entity(entt::entity id, entt::registry* reg);
 
         Entity(const Entity&) = delete;
         Entity& operator=(const Entity&) = delete;
@@ -36,25 +43,20 @@ namespace Pondo {
 
         void SetMesh    (std::shared_ptr<Mesh>     mesh);
         void SetMaterial(std::shared_ptr<Material> mat);
-        void AddLight   (LightType type = LightType::Point); // attaches a LightComponent
+        void AddLight   (LightType type = LightType::Point);
         void RemoveLight();
 
-        bool HasLight() const { return m_HasLight; }
+        bool HasLight()    const;
+        bool HasMesh()     const;
+        bool HasMaterial() const;
+
+        // Raw entt handle — needed by Scene internals only.
+        entt::entity Handle() const { return m_Handle; }
+        bool         Valid()  const { return m_Registry != nullptr; }
 
     private:
-        uint32_t           m_ID = 0;
-        TagComponent       m_Tag;
-        TransformComponent m_Transform;
-
-        MeshComponent      m_Mesh;
-        MaterialComponent  m_Material;
-        LightComponent     m_Light;
-
-        bool m_HasMesh     = false;
-        bool m_HasMaterial = false;
-        bool m_HasLight    = false;
-
-        static uint32_t s_NextID;
+        entt::entity    m_Handle   = entt::entity(0xFFFFFFFF);
+        entt::registry* m_Registry = nullptr;
     };
 
 #pragma warning(pop)
