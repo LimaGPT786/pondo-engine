@@ -4,6 +4,7 @@
 #include <Pondo.h>
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/euler_angles.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include "Pondo/Scene/SceneSerializer.h"
 
@@ -12,7 +13,7 @@
 // -------------------------------------------------------
 
 SceneLayer::SceneLayer() : Layer("SceneLayer") {}
-
+static bool s_prevLmb = false;
 void SceneLayer::SetFramebuffer(std::shared_ptr<Pondo::Framebuffer> fb)
 {
     m_Framebuffer = fb;
@@ -40,13 +41,13 @@ void SceneLayer::SetSnapSettings(bool enabled, float move, float rotate, float s
 
 void SceneLayer::LoadScene(const std::string& path)
 {
-    m_SelectedEntity = nullptr;
+    m_Selection.clear();
     m_Scene->Clear();
     Pondo::SceneSerializer::Load(m_Scene.get(), path, m_Shader);
 
     auto& entities = m_Scene->GetEntities();
     if (!entities.empty())
-        m_SelectedEntity = entities[0].get();
+        m_Selection.push_back(entities[0].get());
 }
 
 void SceneLayer::CollectLights()
@@ -96,9 +97,9 @@ void SceneLayer::CollectLights()
                 out.Color = lc->Color;
 
             out.Intensity =
-                std::max(
-                    lc->Intensity,
-                    8.0f);
+                glm::max(
+                    0.0f,
+                    lc->Intensity);
 
             out.Constant =
                 1.0f;
@@ -112,41 +113,112 @@ void SceneLayer::CollectLights()
             out.Range = lc->Range;
         }
 
-        if (lc->Type == Pondo::LightType::Spot)
+        if (
+            lc->Type
+            ==
+            Pondo::LightType::Spot)
         {
-            if (m_Lights.SpotLightCount >=
+            if (
+                m_Lights.SpotLightCount
+                >=
                 Pondo::MAX_SPOT_LIGHTS)
+            {
                 continue;
+            }
 
             auto& out =
-                m_Lights.SpotLights[
-                    m_Lights.SpotLightCount++
+                m_Lights
+                .
+                SpotLights[
+                    m_Lights
+                        .
+                        SpotLightCount++
                 ];
 
             out.Position =
                 tf.Position;
 
-            out.Direction =
-                lc->Direction;
+            glm::vec3 dir =
+                lc
+                ->
+                Direction;
 
-            if (glm::length(lc->Color) < 0.01f)
-                out.Color = { 1.0f, 1.0f, 1.0f };
-            else
-                out.Color = lc->Color;
+            if (
+                glm::length(
+                    dir)
+                <
+                0.001f)
+            {
+                dir =
+                {
+                    0,
+                    -1,
+                    0
+                };
+            }
+
+            out.Direction =
+                glm::normalize(
+                    dir);
+
+            out.Color =
+                glm::length(
+                    lc
+                    ->
+                    Color)
+                <
+                0.01f
+                ?
+                glm::vec3(
+                    1)
+                :
+                lc
+                ->
+                Color;
 
             out.Intensity =
-                std::max(
-                    lc->Intensity,
-                    8.0f);
+                glm::max(
+                    0.0f,
+                    lc
+                    ->
+                    Intensity);
 
             out.Constant =
-                lc->Constant;
+                glm::max(
+                    0.001f,
+                    lc
+                    ->
+                    Constant);
 
             out.Linear =
-                lc->Linear;
+                glm::max(
+                    0.0f,
+                    lc
+                    ->
+                    Linear);
 
             out.Quadratic =
-                lc->Quadratic;
+                glm::max(
+                    0.0f,
+                    lc
+                    ->
+                    Quadratic);
+
+            out.InnerCutoffCos =
+                glm::cos(
+                    glm::radians(
+                        glm::clamp(
+                            lc->InnerCutoffDeg,
+                            0.1f,
+                            89.9f)));
+
+            out.OuterCutoffCos =
+                glm::cos(
+                    glm::radians(
+                        glm::clamp(
+                            lc->OuterCutoffDeg,
+                            lc->InnerCutoffDeg + 0.1f,
+                            89.9f)));
         }
     }
 }
@@ -170,12 +242,73 @@ Pondo::Entity* SceneLayer::SpawnLight(
     glm::vec3 pos)
 {
     auto* e =
-        m_Scene->CreateEntity(name);
+        m_Scene
+        ->
+        CreateEntity(
+            name);
 
-    e->GetTransform().Position =
+    e
+        ->
+        GetTransform()
+        .
+        Position =
         pos;
 
-    e->AddLight(type);
+    e
+        ->
+        AddLight(
+            type);
+
+    if (
+        !e
+        ->
+        HasLight())
+    {
+        return e;
+    }
+
+    auto* lc =
+        e
+        ->
+        GetLight();
+
+    if (
+        !lc)
+    {
+        return e;
+    }
+
+    lc->Type =
+        type;
+
+    lc->Color =
+    {
+        1,
+        1,
+        1
+    };
+
+    lc->Intensity =
+        2.0f;
+
+    lc->Range =
+        25.0f;
+
+    lc->Constant =
+        1.0f;
+
+    lc->Linear =
+        0.045f;
+
+    lc->Quadratic =
+        0.0075f;
+
+    lc->Direction =
+    {
+        0,
+        -1,
+        0
+    };
 
     return e;
 }
@@ -184,13 +317,29 @@ Pondo::Entity* SceneLayer::DuplicateEntity(Pondo::Entity* src)
 {
     if (!src) return nullptr;
 
+    // Light-only entities have no mesh — handle them separately.
+    auto* srcMesh = src->GetMesh();
+    if (!srcMesh || !srcMesh->MeshData)
+    {
+        auto* copy = m_Scene->CreateEntity(src->GetTag() + "_Copy");
+        copy->GetTransform() = src->GetTransform();
+        if (src->HasLight())
+        {
+            auto* lc = src->GetLight();
+            copy->AddLight(lc->Type);
+            if (auto* clc = copy->GetLight())
+                *clc = *lc;
+        }
+        return copy;
+    }
+
     glm::vec4 color = { 1, 1, 1, 1 };
     if (src->GetMaterial() && src->GetMaterial()->Mat)
         color = src->GetMaterial()->Mat->GetColor();
 
     auto* copy = SpawnEntity(
         src->GetTag() + "_Copy",
-        src->GetMesh()->MeshData,
+        srcMesh->MeshData,
         color,
         src->GetTransform().Position);
 
@@ -200,32 +349,151 @@ Pondo::Entity* SceneLayer::DuplicateEntity(Pondo::Entity* src)
 
 void SceneLayer::DeleteSelected()
 {
-    if (!m_SelectedEntity) return;
-    uint32_t id = m_SelectedEntity->GetID();
-    m_SelectedEntity = nullptr;
-    m_Scene->DestroyEntity(id);
+    if (m_Selection.empty()) return;
+
+    // Collect IDs first so the vector stays valid during erasure.
+    std::vector<uint32_t> ids;
+    ids.reserve(m_Selection.size());
+    for (auto* e : m_Selection) ids.push_back(e->GetID());
+
+    m_Selection.clear();
+    for (uint32_t id : ids)
+        m_Scene->DestroyEntity(id);
 }
 
 // -------------------------------------------------------
 //  Picking
 // -------------------------------------------------------
 
-void SceneLayer::TryPickEntity(glm::vec2 px)
+void SceneLayer::TryPickEntity(
+    glm::vec2 px,
+    bool addToSelection)
 {
-    if (m_VpSize.x <= 0 || m_VpSize.y <= 0) return;
-    Ray ray = ScreenToRay(px, m_VpPos, m_VpSize,
-        glm::inverse(m_Camera->GetViewProjection()));
-
-    Pondo::Entity* best = nullptr;
-    float bestT = 1e30f;
-    for (auto& ep : m_Scene->GetEntities()) {
-        if (!ep->GetMesh()) continue;
-        glm::vec3 c = ep->GetTransform().Position;
-        glm::vec3 h = glm::abs(ep->GetTransform().Scale) * 0.5f;
-        float t = RayAABB(ray, c - h, c + h);
-        if (t > 0.0f && t < bestT) { bestT = t; best = ep.get(); }
+    if (
+        m_VpSize.x <= 0 ||
+        m_VpSize.y <= 0)
+    {
+        return;
     }
-    m_SelectedEntity = best;
+
+    Ray ray =
+        ScreenToRay(
+            px,
+            m_VpPos,
+            m_VpSize,
+            glm::inverse(
+                m_Camera
+                ->
+                GetViewProjection()));
+
+    Pondo::Entity*
+        best =
+        nullptr;
+
+    float bestT =
+        1e30f;
+
+    for (
+        auto& ep :
+        m_Scene
+        ->
+        GetEntities())
+    {
+        auto* e =
+            ep.get();
+
+        if (
+            !e
+            ->
+            GetMesh())
+        {
+            continue;
+        }
+
+        glm::vec3 c =
+            e
+            ->
+            GetTransform()
+            .
+            Position;
+
+        glm::vec3 h =
+            glm::abs(
+                e
+                ->
+                GetTransform()
+                .
+                Scale)
+            *
+            0.5f;
+
+        float t =
+            RayAABB(
+                ray,
+                c - h,
+                c + h);
+
+        if (
+            t > 0 &&
+            t < bestT)
+        {
+            best =
+                e;
+
+            bestT =
+                t;
+        }
+    }
+
+    if (
+        !best)
+    {
+        if (
+            !addToSelection)
+        {
+            m_Selection.clear();
+        }
+
+        return;
+    }
+
+    if (
+        addToSelection)
+    {
+        bool found =
+            false;
+
+        for (
+            auto* e :
+            m_Selection)
+        {
+            if (
+                e ==
+                best)
+            {
+                found =
+                    true;
+
+                break;
+            }
+        }
+
+        if (
+            !found)
+        {
+            m_Selection
+                .
+                push_back(
+                    best);
+        }
+
+        return;
+    }
+
+    m_Selection.clear();
+
+    m_Selection.push_back(
+        best);
 }
 
 // -------------------------------------------------------
@@ -234,9 +502,15 @@ void SceneLayer::TryPickEntity(glm::vec2 px)
 
 int SceneLayer::GizmoAxisHit(glm::vec2 px)
 {
-    if (!m_SelectedEntity) return -1;
+    if (m_Selection.empty()) return -1;
 
-    glm::vec3 origin = m_SelectedEntity->GetTransform().Position;
+    // Use the same averaged origin that DrawGizmo uses so hit-testing
+    // matches what's actually drawn when multiple entities are selected.
+    glm::vec3 origin(0);
+    for (auto* e : m_Selection)
+        origin += e->GetTransform().Position;
+    origin /= (float)m_Selection.size();
+
     float gizmoScale = glm::length(m_Camera->GetPosition() - origin) * 0.15f;
 
     // --- ROTATION MODE ---
@@ -280,15 +554,81 @@ int SceneLayer::GizmoAxisHit(glm::vec2 px)
                 if (dist < bestDist) { bestDist = dist; bestAxis = axis; }
             }
         }
-        return bestDist < 40.0f ? bestAxis : -1;
+        return bestDist < 75.0f ? bestAxis : -1;
     }
 
     // --- MOVE + SCALE MODE ---
-    glm::vec3 tips[3] = {
-        origin + glm::vec3(gizmoScale, 0, 0),
-        origin + glm::vec3(0, gizmoScale, 0),
-        origin + glm::vec3(0, 0, gizmoScale)
+    glm::vec3 axes[3] =
+    {
+        {1,0,0},
+        {0,1,0},
+        {0,0,1}
     };
+
+    if (
+        m_GizmoSpace
+        ==
+        1)
+    {
+        glm::mat4 rot =
+            glm::eulerAngleXYZ(
+                glm::radians(
+                    m_Selection[0]
+                    ->
+                    GetTransform()
+                    .
+                    Rotation
+                    .
+                    x),
+
+                glm::radians(
+                    m_Selection[0]
+                    ->
+                    GetTransform()
+                    .
+                    Rotation
+                    .
+                    y),
+
+                glm::radians(
+                    m_Selection[0]
+                    ->
+                    GetTransform()
+                    .
+                    Rotation
+                    .
+                    z));
+
+        for (
+            int i = 0;
+            i < 3;
+            i++)
+        {
+            axes[i] =
+                glm::normalize(
+                    glm::vec3(
+                        rot
+                        *
+                        glm::vec4(
+                            axes[i],
+                            0)));
+        }
+    }
+
+    glm::vec3 tips[3];
+
+    for (
+        int i = 0;
+        i < 3;
+        i++)
+    {
+        tips[i] =
+            origin
+            +
+            axes[i]
+            *
+            gizmoScale;
+    }
 
     int   bestAxis = -1;
     float bestDist = 999999.0f;
@@ -306,7 +646,7 @@ int SceneLayer::GizmoAxisHit(glm::vec2 px)
         float     dist = glm::length(px - hit);
         if (dist < bestDist) { bestDist = dist; bestAxis = i; }
     }
-    return bestDist < 35.0f ? bestAxis : -1;
+    return bestDist < 70.0f ? bestAxis : -1;
 }
 
 // -------------------------------------------------------
@@ -315,24 +655,63 @@ int SceneLayer::GizmoAxisHit(glm::vec2 px)
 
 void SceneLayer::BeginGizmoDrag(int axis, glm::vec2 px)
 {
-    if (!m_SelectedEntity) return;
+    if (m_Selection.empty()) return;
     m_DragAxis = axis;
     m_DragStartPx = px;
-    auto& tf = m_SelectedEntity->GetTransform();
-    m_DragStartPos = tf.Position;
+
+    // Use averaged center as the gizmo anchor (matches DrawGizmo + GizmoAxisHit).
+    glm::vec3 center(0);
+    for (auto* e : m_Selection)
+        center += e->GetTransform().Position;
+    center /= (float)m_Selection.size();
+    m_DragStartPos = center;
+
+    auto& tf = m_Selection[0]->GetTransform();
     m_DragStartScale = tf.Scale;
     m_DragStartRot = tf.Rotation;
+
+    // Record starting transforms for secondary selected entities.
+    m_DragStartOffsets.clear();
+    m_DragStartScales.clear();
+    m_DragStartOffsetRots.clear();
+    for (size_t i = 1; i < m_Selection.size(); ++i)
+    {
+        auto& stf = m_Selection[i]->GetTransform();
+        m_DragStartOffsets.push_back(stf.Position);
+        m_DragStartScales.push_back(stf.Scale);
+        m_DragStartOffsetRots.push_back(stf.Rotation);
+    }
+
+    // Also record primary entity start position for move mode.
+    m_DragStartOffsets.insert(m_DragStartOffsets.begin(), tf.Position);
+    m_DragStartScales.insert(m_DragStartScales.begin(), tf.Scale);
+    m_DragStartOffsetRots.insert(m_DragStartOffsetRots.begin(), tf.Rotation);
 }
 
 void SceneLayer::UpdateGizmoDrag(glm::vec2 px, bool enableSnap,
     float moveIncrement, float rotateIncrement, float scaleIncrement)
 {
-    if (m_DragAxis < 0 || !m_SelectedEntity) return;
+    if (m_DragAxis < 0 || m_Selection.empty()) return;
 
-    auto& transform = m_SelectedEntity->GetTransform();
-    static const glm::vec3 axes[3] = { {1,0,0}, {0,1,0}, {0,0,1} };
-    glm::vec3 axis = axes[m_DragAxis];
+    Pondo::Entity* primary = m_Selection[0];
+    auto& primaryTf = primary->GetTransform();
 
+    // Determine the drag axis direction in world space.
+    // In Local space, rotate the axis by the primary entity's orientation.
+    static const glm::vec3 worldAxes[3] = { {1,0,0}, {0,1,0}, {0,0,1} };
+    glm::vec3 axis = worldAxes[m_DragAxis];
+
+    if (m_GizmoSpace == 1) // Local
+    {
+        // Build rotation matrix from primary entity's Euler angles.
+        glm::mat4 rotMat = glm::eulerAngleXYZ(
+            glm::radians(primaryTf.Rotation.x),
+            glm::radians(primaryTf.Rotation.y),
+            glm::radians(primaryTf.Rotation.z));
+        axis = glm::normalize(glm::vec3(rotMat * glm::vec4(axis, 0.0f)));
+    }
+
+    // Project drag delta onto screen-space axis direction.
     glm::vec2 p0 = WorldToScreen(m_DragStartPos, m_Camera->GetViewProjection(), m_VpPos, m_VpSize);
     glm::vec2 p1 = WorldToScreen(m_DragStartPos + axis, m_Camera->GetViewProjection(), m_VpPos, m_VpSize);
     glm::vec2 dir = p1 - p0;
@@ -344,27 +723,48 @@ void SceneLayer::UpdateGizmoDrag(glm::vec2 px, bool enableSnap,
 
     switch (m_GizmoMode)
     {
-    case 0: // Move
+    case 0: // Move — apply delta to ALL selected entities from their recorded starts
     {
         if (enableSnap && moveIncrement > 0.0f)
             dragAmount = round(dragAmount / moveIncrement) * moveIncrement;
-        transform.Position = m_DragStartPos + axis * dragAmount;
+
+        glm::vec3 delta = axis * dragAmount;
+
+        for (size_t i = 0; i < m_Selection.size(); i++)
+        {
+            m_Selection[i]->GetTransform().Position =
+                m_DragStartOffsets[i] + delta;
+        }
+
         break;
     }
-    case 1: // Rotate
+    case 1: // Rotate — same angle applied to all
     {
         float rotation = dragAmount * 100.0f;
         if (enableSnap && rotateIncrement > 0.0f)
             rotation = round(rotation / rotateIncrement) * rotateIncrement;
-        transform.Rotation[m_DragAxis] = m_DragStartRot[m_DragAxis] + rotation;
+
+        for (size_t i = 0; i < m_Selection.size(); ++i)
+        {
+            auto& tf = m_Selection[i]->GetTransform();
+            tf.Rotation[m_DragAxis] = m_DragStartOffsetRots[i][m_DragAxis] + rotation;
+        }
         break;
     }
-    case 2: // Scale
+    case 2: // Scale — each entity scaled around its own pivot
     {
         if (enableSnap && scaleIncrement > 0.0f)
             dragAmount = round(dragAmount / scaleIncrement) * scaleIncrement;
-        transform.Scale[m_DragAxis] =
-            std::max(0.001f, m_DragStartScale[m_DragAxis] + dragAmount);
+
+        primaryTf.Scale[m_DragAxis] =
+            glm::max(0.001f, float(m_DragStartScales[0][m_DragAxis] + dragAmount));
+
+        for (size_t i = 1; i < m_Selection.size(); ++i)
+        {
+            auto& tf = m_Selection[i]->GetTransform();
+            tf.Scale[m_DragAxis] =
+                glm::max(0.001f, float(m_DragStartScales[i][m_DragAxis] + dragAmount));
+        }
         break;
     }
     }
@@ -429,6 +829,101 @@ void SceneLayer::OnUpdate(Pondo::Timestep ts)
     else {
         m_FirstMouseLook = true;
     }
+
+    if (IsDraggingGizmo())
+    {
+        auto [mx, my] =
+            Pondo::Input
+            ::GetMousePosition();
+
+        UpdateGizmoDrag(
+            {
+                mx,
+                my
+            },
+            m_EnableSnapping,
+            m_MoveIncrement,
+            m_RotateIncrement,
+            m_ScaleIncrement);
+    }
+
+    bool lmb =
+        Pondo::Input
+        ::IsMouseButtonPressed(
+            GLFW_MOUSE_BUTTON_LEFT);
+
+    auto [mx, my] =
+        Pondo::Input
+        ::GetMousePosition();
+
+    glm::vec2 mouse =
+    {
+        mx,
+        my
+    };
+
+    bool pressed =
+        lmb
+        &&
+        !s_prevLmb;
+
+    bool released =
+        !lmb
+        &&
+        s_prevLmb;
+
+    if (
+        pressed)
+    {
+        int axis =
+            GizmoAxisHit(
+                mouse);
+
+        if (
+            axis >= 0)
+        {
+            BeginGizmoDrag(
+                axis,
+                mouse);
+        }
+        else
+        {
+            bool add =
+                Pondo::Input
+                ::IsKeyPressed(
+                    GLFW_KEY_LEFT_SHIFT)
+                ||
+                Pondo::Input
+                ::IsKeyPressed(
+                    GLFW_KEY_RIGHT_SHIFT);
+
+            TryPickEntity(
+                mouse,
+                add);
+        }
+    }
+
+    if (
+        lmb
+        &&
+        IsDraggingGizmo())
+    {
+        UpdateGizmoDrag(
+            mouse,
+            m_EnableSnapping,
+            m_MoveIncrement,
+            m_RotateIncrement,
+            m_ScaleIncrement);
+    }
+
+    if (
+        released)
+    {
+        EndGizmoDrag();
+    }
+
+    s_prevLmb =
+        lmb;
 }
 
 void SceneLayer::OnRender()
@@ -467,22 +962,34 @@ void SceneLayer::OnRender()
     glLineWidth(1.0f);
     m_Grid.Draw();
 
-    if (m_SelectedEntity) {
-        auto& tf = m_SelectedEntity->GetTransform();
+    if (!m_Selection.empty()) {
         glDisable(GL_DEPTH_TEST);
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glLineWidth(2.0f);
         m_FlatShader->Bind();
         m_FlatShader->SetMat4("u_ViewProjection", m_Camera->GetViewProjection());
-        glm::mat4 transform = tf.GetTransform() * glm::scale(glm::mat4(1), glm::vec3(1.05f));
-        m_FlatShader->SetMat4("u_Transform", transform);
-        m_FlatShader->SetFloat4("u_Color", { 1, 0.85f, 0.1f, 1 });
-        auto* mc = m_SelectedEntity->GetMesh();
-        if (mc && mc->MeshData) {
-            mc->MeshData->Bind();
-            glDrawElements(GL_TRIANGLES, mc->MeshData->GetIndexCount(), GL_UNSIGNED_INT, nullptr);
-            mc->MeshData->Unbind();
+
+        for (size_t i = 0; i < m_Selection.size(); ++i)
+        {
+            auto* ent = m_Selection[i];
+            auto& tf = ent->GetTransform();
+            glm::mat4 transform = tf.GetTransform() * glm::scale(glm::mat4(1), glm::vec3(1.05f));
+            m_FlatShader->SetMat4("u_Transform", transform);
+
+            // Primary = gold, secondary selections = cyan
+            if (i == 0)
+                m_FlatShader->SetFloat4("u_Color", { 1, 0.85f, 0.1f, 1 });
+            else
+                m_FlatShader->SetFloat4("u_Color", { 0.2f, 0.9f, 0.9f, 1 });
+
+            auto* mc = ent->GetMesh();
+            if (mc && mc->MeshData) {
+                mc->MeshData->Bind();
+                glDrawElements(GL_TRIANGLES, mc->MeshData->GetIndexCount(), GL_UNSIGNED_INT, nullptr);
+                mc->MeshData->Unbind();
+            }
         }
+
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         DrawGizmo();
         glEnable(GL_DEPTH_TEST);
@@ -495,10 +1002,23 @@ void SceneLayer::OnRender()
 void SceneLayer::OnEvent(Pondo::Event& e)
 {
     Pondo::EventDispatcher d(e);
-    d.Dispatch<Pondo::WindowResizeEvent>([this](Pondo::WindowResizeEvent& ev) {
-        if (ev.GetWidth() > 0 && ev.GetHeight() > 0)
-            m_Camera->SetAspectRatio((float)ev.GetWidth() / ev.GetHeight());
-        return false;
+
+    d.Dispatch<Pondo::WindowResizeEvent>(
+        [this](Pondo::WindowResizeEvent& ev)
+        {
+            if (
+                ev.GetWidth() > 0 &&
+                ev.GetHeight() > 0)
+            {
+                m_Camera
+                    ->SetAspectRatio(
+                        (float)
+                        ev.GetWidth()
+                        /
+                        ev.GetHeight());
+            }
+
+            return false;
         });
 }
 
@@ -508,22 +1028,187 @@ void SceneLayer::OnEvent(Pondo::Event& e)
 
 void SceneLayer::DrawGizmo()
 {
-    if (!m_SelectedEntity) return;
+    if (m_Selection.empty()) return;
 
     if (Pondo::Input::IsKeyPressed(GLFW_KEY_1)) m_GizmoMode = 0;
     if (Pondo::Input::IsKeyPressed(GLFW_KEY_2)) m_GizmoMode = 1;
     if (Pondo::Input::IsKeyPressed(GLFW_KEY_3)) m_GizmoMode = 2;
+    static bool gWasDown =
+        false;
 
-    glm::vec3 origin = m_SelectedEntity->GetTransform().Position;
+    bool gDown =
+        Pondo::Input
+        ::IsKeyPressed(
+            GLFW_KEY_G);
+
+    if (
+        gDown
+        &&
+        !gWasDown)
+    {
+        m_GizmoSpace =
+            1
+            -
+            m_GizmoSpace;
+
+        m_GizmoHintTimer =
+            1.0f;
+    }
+
+    gWasDown =
+        gDown;
+
+    glm::vec3 origin(0);
+
+    for (
+        auto* e :
+        m_Selection)
+    {
+        origin +=
+            e
+            ->
+            GetTransform()
+            .
+            Position;
+    }
+
+    origin /=
+        (float)
+        m_Selection
+        .size();
     float     scale = glm::length(m_Camera->GetPosition() - origin) * 0.15f;
+
+    // In Local space, build per-axis directions from the primary entity's rotation.
+    glm::vec3 axisX = { 1, 0, 0 };
+    glm::vec3 axisY = { 0, 1, 0 };
+    glm::vec3 axisZ = { 0, 0, 1 };
+
+    if (m_GizmoSpace == 1) // Local
+    {
+        glm::mat4 rotMat = glm::eulerAngleXYZ(
+            glm::radians(m_Selection[0]->GetTransform().Rotation.x),
+            glm::radians(m_Selection[0]->GetTransform().Rotation.y),
+            glm::radians(m_Selection[0]->GetTransform().Rotation.z));
+        axisX = glm::normalize(glm::vec3(rotMat * glm::vec4(axisX, 0)));
+        axisY = glm::normalize(glm::vec3(rotMat * glm::vec4(axisY, 0)));
+        axisZ = glm::normalize(glm::vec3(rotMat * glm::vec4(axisZ, 0)));
+    }
 
     glDisable(GL_DEPTH_TEST);
 
+    static float modeTimer =
+        0.0f;
+
+    static int last =
+        0;
+
+    if (
+        last
+        !=
+        m_GizmoSpace)
+    {
+        modeTimer =
+            1.5f;
+
+        last =
+            m_GizmoSpace;
+    }
+
+    if (
+        modeTimer
+    >
+        0)
+    {
+        modeTimer
+            -=
+            0.016f;
+
+        m_FlatShader
+            ->
+            Bind();
+
+        glm::mat4 t =
+            glm::translate(
+                glm::mat4(1),
+                origin
+                +
+                glm::vec3(
+                    0,
+                    scale
+                    *
+                    1.3f,
+                    0));
+
+        t =
+            glm::scale(
+                t,
+                glm::vec3(
+                    scale
+                    *
+                    0.15f));
+
+        m_FlatShader
+            ->
+            SetMat4(
+                "u_Transform",
+                t);
+
+        if (
+            m_GizmoSpace
+            ==
+            0)
+        {
+            m_FlatShader
+                ->
+                SetFloat4(
+                    "u_Color",
+                    {
+                        1,
+                        0.8f,
+                        0.2f,
+                        1
+                    });
+        }
+        else
+        {
+            m_FlatShader
+                ->
+                SetFloat4(
+                    "u_Color",
+                    {
+                        0.3f,
+                        1,
+                        1,
+                        1
+                    });
+        }
+
+        glPointSize(
+            20);
+
+        m_Arrow
+            .
+            VA
+            ->
+            Bind();
+
+        glDrawArrays(
+            GL_POINTS,
+            0,
+            1);
+
+        m_Arrow
+            .
+            VA
+            ->
+            Unbind();
+    }
+
     struct Axis { glm::vec3 dir; glm::vec4 color; glm::vec4 active; };
     Axis axes[3] = {
-        { {1,0,0}, {1,0.2f,0.2f,1}, {1,0.6f,0.6f,1} },
-        { {0,1,0}, {0.2f,1,0.2f,1}, {0.6f,1,0.6f,1} },
-        { {0,0,1}, {0.2f,0.4f,1,1}, {0.6f,0.8f,1,1} }
+        { axisX, {1,0.2f,0.2f,1}, {1,0.6f,0.6f,1} },
+        { axisY, {0.2f,1,0.2f,1}, {0.6f,1,0.6f,1} },
+        { axisZ, {0.2f,0.4f,1,1}, {0.6f,0.8f,1,1} }
     };
 
     for (int i = 0; i < 3; i++)
@@ -554,37 +1239,153 @@ void SceneLayer::DrawArrow(const glm::vec3& origin, const glm::vec3& axis,
     m_Arrow.Draw();
 }
 
-void SceneLayer::DrawRotationCircle(const glm::vec3& origin, const glm::vec3& axis,
-    float scale, const glm::vec4& color)
+void SceneLayer::DrawRotationCircle(
+    const glm::vec3& origin,
+    const glm::vec3& axis,
+    float scale,
+    const glm::vec4& color)
 {
-    constexpr int SEGMENTS = 48;
-    std::vector<float> verts;
-    float     radius = scale * 0.9f;
-    glm::vec3 right, up;
+    constexpr int SEGMENTS = 64;
 
-    if (axis.x != 0) { right = { 0,1,0 }; up = { 0,0,1 }; }
-    else if (axis.y != 0) { right = { 1,0,0 }; up = { 0,0,1 }; }
-    else { right = { 1,0,0 }; up = { 0,1,0 }; }
+    std::vector<float>
+        verts;
 
-    for (int i = 0; i <= SEGMENTS; i++) {
-        float     a = glm::two_pi<float>() * ((float)i / SEGMENTS);
-        glm::vec3 p = origin + right * cos(a) * radius + up * sin(a) * radius;
-        verts.push_back(p.x); verts.push_back(p.y); verts.push_back(p.z);
+    float radius =
+        scale *
+        0.9f;
+
+    glm::vec3 n =
+        glm::normalize(
+            axis);
+
+    glm::vec3 helper =
+        fabs(n.y)
+        <
+        0.99f
+        ?
+        glm::vec3(
+            0,
+            1,
+            0)
+        :
+        glm::vec3(
+            1,
+            0,
+            0);
+
+    glm::vec3 right =
+        glm::normalize(
+            glm::cross(
+                helper,
+                n));
+
+    glm::vec3 up =
+        glm::normalize(
+            glm::cross(
+                n,
+                right));
+
+    for (
+        int i = 0;
+        i <= SEGMENTS;
+        i++)
+    {
+        float a =
+            glm::two_pi<float>()
+            *
+            (
+                float(i)
+                /
+                SEGMENTS);
+
+        glm::vec3 p =
+            origin
+            +
+            right
+            *
+            cos(a)
+            *
+            radius
+            +
+            up
+            *
+            sin(a)
+            *
+            radius;
+
+        verts.push_back(
+            p.x);
+
+        verts.push_back(
+            p.y);
+
+        verts.push_back(
+            p.z);
     }
 
-    auto vb = std::make_shared<Pondo::VertexBuffer>(verts.data(),
-        (uint32_t)(verts.size() * sizeof(float)));
-    auto va = std::make_shared<Pondo::VertexArray>();
-    va->AddVertexBuffer(vb);
+    auto vb =
+        std::make_shared
+        <
+        Pondo
+        ::
+        VertexBuffer
+        >
+        (
+            verts.data(),
+            verts.size()
+            *
+            sizeof(float));
 
-    m_FlatShader->Bind();
-    m_FlatShader->SetMat4("u_Transform", glm::mat4(1));
-    m_FlatShader->SetFloat4("u_Color", color);
-    va->Bind();
-    glLineWidth(4);
-    glDrawArrays(GL_LINE_STRIP, 0, SEGMENTS + 1);
-    va->Unbind();
-    glLineWidth(1);
+    auto va =
+        std::make_shared
+        <
+        Pondo
+        ::
+        VertexArray
+        >
+        ();
+
+    va
+        ->
+        AddVertexBuffer(
+            vb);
+
+    m_FlatShader
+        ->
+        Bind();
+
+    m_FlatShader
+        ->
+        SetMat4(
+            "u_Transform",
+            glm::mat4(
+                1));
+
+    m_FlatShader
+        ->
+        SetFloat4(
+            "u_Color",
+            color);
+
+    va
+        ->
+        Bind();
+
+    glLineWidth(
+        4);
+
+    glDrawArrays(
+        GL_LINE_STRIP,
+        0,
+        SEGMENTS +
+        1);
+
+    va
+        ->
+        Unbind();
+
+    glLineWidth(
+        1);
 }
 
 void SceneLayer::DrawScaleDot(const glm::vec3& pos, float size, const glm::vec4& color)

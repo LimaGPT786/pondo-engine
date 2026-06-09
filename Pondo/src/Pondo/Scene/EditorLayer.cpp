@@ -166,6 +166,40 @@ void EditorLayer::OnRender()
             Pondo::SceneSerializer::Save(m_SceneLayer->GetScene(), m_CurrentScenePath);
     }
 
+    // Global / Local space hint toast
+    if (m_SceneLayer->GetGizmoHintTimer() > 0)
+    {
+        m_SceneLayer->TickGizmoHint(io.DeltaTime);
+
+        const float PAD = 12.0f;
+        ImVec2 displaySize = io.DisplaySize;
+        ImGui::SetNextWindowBgAlpha(0.82f);
+        // Anchor to bottom-right corner so it never blocks the scene panel or properties
+        ImGui::SetNextWindowPos(
+            { displaySize.x - PAD, displaySize.y - PAD },
+            ImGuiCond_Always,
+            { 1.0f, 1.0f });
+
+        ImGui::Begin(
+            "##TransformSpace",
+            nullptr,
+            ImGuiWindowFlags_NoDecoration |
+            ImGuiWindowFlags_NoMove       |
+            ImGuiWindowFlags_AlwaysAutoResize |
+            ImGuiWindowFlags_NoSavedSettings  |
+            ImGuiWindowFlags_NoFocusOnAppearing);
+
+        ImGui::Text("Transform Space");
+        ImGui::Separator();
+
+        if (m_SceneLayer->GetGizmoSpace() == 0)
+            ImGui::TextColored({ 1, 0.8f, 0.2f, 1 }, "GLOBAL");
+        else
+            ImGui::TextColored({ 0.2f, 0.9f, 1, 1 }, "LOCAL");
+
+        ImGui::End();
+    }
+
     // ── Menu bar ─────────────────────────────────────────────────────
     ImGui::SetNextWindowPos({ 0, 0 });
     ImGui::SetNextWindowSize({ (float)w, 0 });
@@ -364,9 +398,9 @@ void EditorLayer::OnRender()
                     m_TransformBefore = tf;
 
                 bool changed = false;
-                changed |= ImGui::InputFloat3("Position", &tf.Position.x, "%.3f");
-                changed |= ImGui::InputFloat3("Rotation", &tf.Rotation.x, "%.2f");
-                changed |= ImGui::InputFloat3("Scale",    &tf.Scale.x,    "%.3f");
+                changed |= ImGui::DragFloat3("Position", &tf.Position.x, 0.1f,  0.0f, 0.0f, "%.3f");
+                changed |= ImGui::DragFloat3("Rotation", &tf.Rotation.x, 1.0f,  0.0f, 0.0f, "%.2f");
+                changed |= ImGui::DragFloat3("Scale",    &tf.Scale.x,    0.01f, 0.0f, 0.0f, "%.3f");
                 tf.Scale.x = std::max(0.001f, tf.Scale.x);
                 tf.Scale.y = std::max(0.001f, tf.Scale.y);
                 tf.Scale.z = std::max(0.001f, tf.Scale.z);
@@ -397,9 +431,9 @@ void EditorLayer::OnRender()
 
                     ImGui::Checkbox("Enabled", &lc->Enabled);
 
-                    const char* lightTypes[] = { "Directional", "Point", "Spot" };
+                    const char* lightTypes[] = { "Point", "Spot" };
                     int typeIndex = (int)lc->Type;
-                    if (ImGui::Combo("Type", &typeIndex, lightTypes, 3))
+                    if (ImGui::Combo("Type", &typeIndex, lightTypes, 2))
                         lc->Type = (Pondo::LightType)typeIndex;
 
                     float col[3] = { lc->Color.r, lc->Color.g, lc->Color.b };
@@ -445,8 +479,6 @@ void EditorLayer::OnRender()
                     ImGui::SameLine();
                     if (ImGui::Button("+ Spot Light"))
                         sel->AddLight(Pondo::LightType::Spot);
-                    if (ImGui::Button("+ Directional Light"))
-                        sel->AddLight(Pondo::LightType::Directional);
                 }
             }
             else {
@@ -527,7 +559,9 @@ void EditorLayer::OnRender()
                 m_SceneLayer->BeginGizmoDrag(axis, mouse);
             }
             else {
-                m_SceneLayer->TryPickEntity(mouse);
+                bool shiftHeld = Pondo::Input::IsKeyPressed(GLFW_KEY_LEFT_SHIFT) ||
+                                 Pondo::Input::IsKeyPressed(GLFW_KEY_RIGHT_SHIFT);
+                m_SceneLayer->TryPickEntity(mouse, shiftHeld);
             }
         }
     }

@@ -3,6 +3,7 @@
 #include <Pondo.h>
 #include "Pondo/Scene/Entity.h"
 #include <type_traits>
+#include <vector>
 
 // -------------------------------------------------------
 //  Command interface
@@ -40,4 +41,39 @@ private:
     Pondo::Entity* m_Entity;
     Pondo::TransformComponent m_Before;
     Pondo::TransformComponent m_After;
+};
+
+// -------------------------------------------------------
+//  MultiTransformCommand
+//  Records before/after transforms for a group of entities
+//  (used when a gizmo drag moves the whole selection).
+// -------------------------------------------------------
+
+struct EntityTransformSnapshot
+{
+    Pondo::Entity* Entity = nullptr;
+    Pondo::TransformComponent Before;
+    Pondo::TransformComponent After;
+};
+
+class MultiTransformCommand : public ICommand
+{
+public:
+    explicit MultiTransformCommand(std::vector<EntityTransformSnapshot> snapshots)
+        : m_Snapshots(std::move(snapshots)) {
+    }
+
+    void Undo() override
+    {
+        for (auto& s : m_Snapshots)
+            if (s.Entity) s.Entity->GetTransform() = s.Before;
+    }
+    void Redo() override
+    {
+        for (auto& s : m_Snapshots)
+            if (s.Entity) s.Entity->GetTransform() = s.After;
+    }
+
+private:
+    std::vector<EntityTransformSnapshot> m_Snapshots;
 };
