@@ -17,6 +17,7 @@
 #include "Pondo/Renderer/Framebuffer.h"
 #include "Pondo/Renderer/Mesh.h"
 #include "Pondo/Renderer/Material.h"
+#include "Pondo/Renderer/LightEnvironment.h"   // NEW
 // --------------------------------
 
 // ---Scene------------------------

@@ -121,6 +121,7 @@
     <ClInclude Include="src\Pondo\Window.h">
       <Filter>Pondo</Filter>
     </ClInclude>
+    <ClInclude Include="src\Pondo\Renderer\LightEnvironment.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Pondo\Application.cpp">

@@ -35,7 +35,7 @@ void EditorLayer::OnAttach()
     int h = Pondo::Application::Get().GetWindow().GetHeight();
 
     Pondo::FramebufferSpec spec;
-    spec.Width = (unsigned)w;
+    spec.Width  = (unsigned)w;
     spec.Height = (unsigned)h;
     m_Framebuffer = std::make_shared<Pondo::Framebuffer>(spec);
     m_SceneLayer->SetFramebuffer(m_Framebuffer);
@@ -54,15 +54,15 @@ void EditorLayer::OnAttach()
     ImGui::StyleColorsDark();
     ImGuiStyle& s = ImGui::GetStyle();
     s.WindowRounding = 4.0f;
-    s.FrameRounding = 3.0f;
-    s.Colors[ImGuiCol_WindowBg] = { 0.13f, 0.13f, 0.14f, 1 };
-    s.Colors[ImGuiCol_TitleBg] = { 0.10f, 0.10f, 0.11f, 1 };
-    s.Colors[ImGuiCol_TitleBgActive] = { 0.16f, 0.29f, 0.48f, 1 };
-    s.Colors[ImGuiCol_Header] = { 0.20f, 0.35f, 0.55f, 0.6f };
-    s.Colors[ImGuiCol_HeaderHovered] = { 0.26f, 0.47f, 0.70f, 0.8f };
-    s.Colors[ImGuiCol_FrameBg] = { 0.18f, 0.18f, 0.20f, 1 };
-    s.Colors[ImGuiCol_Button] = { 0.20f, 0.35f, 0.55f, 1 };
-    s.Colors[ImGuiCol_ButtonHovered] = { 0.26f, 0.47f, 0.70f, 1 };
+    s.FrameRounding  = 3.0f;
+    s.Colors[ImGuiCol_WindowBg]       = { 0.13f, 0.13f, 0.14f, 1 };
+    s.Colors[ImGuiCol_TitleBg]        = { 0.10f, 0.10f, 0.11f, 1 };
+    s.Colors[ImGuiCol_TitleBgActive]  = { 0.16f, 0.29f, 0.48f, 1 };
+    s.Colors[ImGuiCol_Header]         = { 0.20f, 0.35f, 0.55f, 0.6f };
+    s.Colors[ImGuiCol_HeaderHovered]  = { 0.26f, 0.47f, 0.70f, 0.8f };
+    s.Colors[ImGuiCol_FrameBg]        = { 0.18f, 0.18f, 0.20f, 1 };
+    s.Colors[ImGuiCol_Button]         = { 0.20f, 0.35f, 0.55f, 1 };
+    s.Colors[ImGuiCol_ButtonHovered]  = { 0.26f, 0.47f, 0.70f, 1 };
 
     ImGui_ImplOpenGL3_Init("#version 450");
 }
@@ -173,8 +173,8 @@ void EditorLayer::OnRender()
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
     ImGui::Begin("##Menu", nullptr,
-        ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
-        ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings |
+        ImGuiWindowFlags_NoTitleBar   | ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoScrollbar  | ImGuiWindowFlags_NoSavedSettings |
         ImGuiWindowFlags_MenuBar);
     ImGui::PopStyleVar(2);
 
@@ -207,9 +207,10 @@ void EditorLayer::OnRender()
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("View")) {
-            ImGui::MenuItem("Scene", nullptr, &m_ShowScene);
+            ImGui::MenuItem("Scene",      nullptr, &m_ShowScene);
             ImGui::MenuItem("Properties", nullptr, &m_ShowProps);
-            ImGui::MenuItem("Stats", nullptr, &m_ShowStats);
+            ImGui::MenuItem("Stats",      nullptr, &m_ShowStats);
+            ImGui::MenuItem("Lighting",   nullptr, &m_ShowLighting);  // NEW
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Create")) {
@@ -217,6 +218,9 @@ void EditorLayer::OnRender()
             if (ImGui::MenuItem("Sphere"))   CreateEntity(1);
             if (ImGui::MenuItem("Plane"))    CreateEntity(2);
             if (ImGui::MenuItem("Cylinder")) CreateEntity(3);
+            ImGui::Separator();                                                                          // NEW
+            if (ImGui::MenuItem("Point Light"))       m_SceneLayer->SpawnLight("PointLight",  Pondo::LightType::Point);       // NEW
+            if (ImGui::MenuItem("Spot Light"))        m_SceneLayer->SpawnLight("SpotLight",   Pondo::LightType::Spot);        // NEW
             ImGui::EndMenu();
         }
         ImGui::EndMenuBar();
@@ -224,17 +228,21 @@ void EditorLayer::OnRender()
     float menuH = ImGui::GetWindowHeight();
     ImGui::End();
 
-    const float sideW = 260.0f;
-    const float topY = menuH;
+    const float sideW    = 260.0f;
+    const float topY     = menuH;
     const float contentH = (float)h - topY;
-    float leftW = m_ShowScene ? sideW : 0.0f;
+    float leftW  = m_ShowScene ? sideW : 0.0f;
     float rightW = (m_ShowProps || m_ShowStats) ? sideW : 0.0f;
 
     // ── Scene panel ──────────────────────────────────────────────────
     if (m_ShowScene)
     {
+        // Give the scene panel the top 55% of the left column so the
+        // lighting panel can sit below it.
+        float sceneH = m_ShowLighting ? contentH * 0.55f : contentH;
+
         ImGui::SetNextWindowPos({ 0, topY });
-        ImGui::SetNextWindowSize({ sideW, contentH });
+        ImGui::SetNextWindowSize({ sideW, sceneH });
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
         ImGui::Begin("Scene##panel", nullptr,
             ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
@@ -258,11 +266,54 @@ void EditorLayer::OnRender()
 
         if (m_SceneLayer->GetSelectedEntity()) {
             ImGui::Spacing();
-            ImGui::PushStyleColor(ImGuiCol_Button, { 0.65f, 0.15f, 0.15f, 1 });
+            ImGui::PushStyleColor(ImGuiCol_Button,        { 0.65f, 0.15f, 0.15f, 1 });
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, { 0.80f, 0.20f, 0.20f, 1 });
             if (ImGui::Button("Delete Selected")) m_SceneLayer->DeleteSelected();
             ImGui::PopStyleColor(2);
         }
+        ImGui::End();
+    }
+
+    // ── Lighting panel (like Roblox Studio's Lighting service) ───────
+    if (m_ShowLighting)
+    {
+        float litY = m_ShowScene ? topY + contentH * 0.55f : topY;
+        float litH = m_ShowScene ? contentH * 0.45f        : contentH;
+
+        ImGui::SetNextWindowPos({ 0, litY });
+        ImGui::SetNextWindowSize({ sideW, litH });
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
+        ImGui::Begin("Lighting##panel", nullptr,
+            ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoBringToFrontOnFocus);
+        ImGui::PopStyleVar();
+
+        auto& L = m_SceneLayer->GetLightEnvironment();
+
+        if (ImGui::CollapsingHeader("Ambient", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            float amb[3] = { L.AmbientColor.r, L.AmbientColor.g, L.AmbientColor.b };
+            if (ImGui::ColorEdit3("Ambient Color", amb))
+                L.AmbientColor = { amb[0], amb[1], amb[2] };
+            ImGui::SliderFloat("Ambient Intensity", &L.AmbientIntensity, 0.0f, 1.0f);
+        }
+
+        if (ImGui::CollapsingHeader("Sun", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::Checkbox("Sun Active", &L.Sun.Active);
+            float sunCol[3] = { L.Sun.Color.r, L.Sun.Color.g, L.Sun.Color.b };
+            if (ImGui::ColorEdit3("Sun Color", sunCol))
+                L.Sun.Color = { sunCol[0], sunCol[1], sunCol[2] };
+            ImGui::SliderFloat("Sun Intensity",  &L.Sun.Intensity, 0.0f, 5.0f);
+            ImGui::SliderFloat3("Sun Direction", &L.Sun.Direction.x, -1.0f, 1.0f);
+            if (ImGui::Button("Normalize Direction"))
+                L.Sun.Direction = glm::normalize(L.Sun.Direction);
+        }
+
+        ImGui::Separator();
+        ImGui::TextDisabled("Point / Spot lights: Create menu");
+        ImGui::TextDisabled("Select a light to edit in Properties.");
+
         ImGui::End();
     }
 
@@ -299,12 +350,12 @@ void EditorLayer::OnRender()
                 ImGui::Separator();
 
                 ImGui::Checkbox("Enable Increment Snap", &m_EnableSnapping);
-                ImGui::InputFloat("Move Step", &m_MoveIncrement, 0, 0, "%.3f");
+                ImGui::InputFloat("Move Step",   &m_MoveIncrement,   0, 0, "%.3f");
                 ImGui::InputFloat("Rotate Step", &m_RotateIncrement, 0, 0, "%.2f");
-                ImGui::InputFloat("Scale Step", &m_ScaleIncrement, 0, 0, "%.3f");
-                m_MoveIncrement = std::max(0.001f, m_MoveIncrement);
-                m_RotateIncrement = std::max(0.01f, m_RotateIncrement);
-                m_ScaleIncrement = std::max(0.001f, m_ScaleIncrement);
+                ImGui::InputFloat("Scale Step",  &m_ScaleIncrement,  0, 0, "%.3f");
+                m_MoveIncrement   = std::max(0.001f, m_MoveIncrement);
+                m_RotateIncrement = std::max(0.01f,  m_RotateIncrement);
+                m_ScaleIncrement  = std::max(0.001f, m_ScaleIncrement);
 
                 ImGui::Separator();
                 auto& tf = sel->GetTransform();
@@ -315,7 +366,7 @@ void EditorLayer::OnRender()
                 bool changed = false;
                 changed |= ImGui::InputFloat3("Position", &tf.Position.x, "%.3f");
                 changed |= ImGui::InputFloat3("Rotation", &tf.Rotation.x, "%.2f");
-                changed |= ImGui::InputFloat3("Scale", &tf.Scale.x, "%.3f");
+                changed |= ImGui::InputFloat3("Scale",    &tf.Scale.x,    "%.3f");
                 tf.Scale.x = std::max(0.001f, tf.Scale.x);
                 tf.Scale.y = std::max(0.001f, tf.Scale.y);
                 tf.Scale.z = std::max(0.001f, tf.Scale.z);
@@ -328,11 +379,74 @@ void EditorLayer::OnRender()
                     m_WasEditingTransform = false;
                 }
 
+                // ---- Material ----
                 if (auto* mc = sel->GetMaterial(); mc && mc->Mat) {
-                    ImGui::Separator(); ImGui::Text("Material");
+                    ImGui::Separator();
+                    ImGui::Text("Material");
                     glm::vec4 col = mc->Mat->GetColor();
                     float ca[4] = { col.r, col.g, col.b, col.a };
-                    if (ImGui::ColorEdit4("Color", ca)) mc->Mat->SetColor({ ca[0], ca[1], ca[2], ca[3] });
+                    if (ImGui::ColorEdit4("Color", ca))
+                        mc->Mat->SetColor({ ca[0], ca[1], ca[2], ca[3] });
+                }
+
+                // ---- Light ----
+                if (auto* lc = sel->GetLight(); lc)
+                {
+                    ImGui::Separator();
+                    ImGui::Text("Light");
+
+                    ImGui::Checkbox("Enabled", &lc->Enabled);
+
+                    const char* lightTypes[] = { "Directional", "Point", "Spot" };
+                    int typeIndex = (int)lc->Type;
+                    if (ImGui::Combo("Type", &typeIndex, lightTypes, 3))
+                        lc->Type = (Pondo::LightType)typeIndex;
+
+                    float col[3] = { lc->Color.r, lc->Color.g, lc->Color.b };
+                    if (ImGui::ColorEdit3("Light Color", col))
+                        lc->Color = { col[0], col[1], col[2] };
+
+                    ImGui::InputFloat("Intensity", &lc->Intensity, 0.0f, 10.0f);
+
+                    if (lc->Type == Pondo::LightType::Directional)
+                    {
+                        ImGui::SliderFloat3("Direction", &lc->Direction.x, -1.0f, 1.0f);
+                        if (ImGui::Button("Normalize##dir"))
+                            lc->Direction = glm::normalize(lc->Direction);
+                    }
+                    else
+                    {
+                        ImGui::InputFloat("Range",     &lc->Range,     0.1f,  50.0f);
+                    }
+
+                    if (lc->Type == Pondo::LightType::Spot)
+                    {
+                        ImGui::SliderFloat3("Direction##spot", &lc->Direction.x, -1.0f, 1.0f);
+                        if (ImGui::Button("Normalize##spot"))
+                            lc->Direction = glm::normalize(lc->Direction);
+                        ImGui::SliderFloat("Inner Angle", &lc->InnerCutoffDeg, 1.0f, 45.0f);
+                        ImGui::SliderFloat("Outer Angle", &lc->OuterCutoffDeg, 1.0f, 60.0f);
+                        if (lc->OuterCutoffDeg < lc->InnerCutoffDeg)
+                            lc->OuterCutoffDeg = lc->InnerCutoffDeg + 1.0f;
+                    }
+
+                    ImGui::Spacing();
+                    ImGui::PushStyleColor(ImGuiCol_Button,        { 0.5f, 0.15f, 0.15f, 1 });
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, { 0.7f, 0.20f, 0.20f, 1 });
+                    if (ImGui::Button("Remove Light")) sel->RemoveLight();
+                    ImGui::PopStyleColor(2);
+                }
+                else
+                {
+                    // Let the user add a light to any existing entity
+                    ImGui::Separator();
+                    if (ImGui::Button("+ Point Light"))
+                        sel->AddLight(Pondo::LightType::Point);
+                    ImGui::SameLine();
+                    if (ImGui::Button("+ Spot Light"))
+                        sel->AddLight(Pondo::LightType::Spot);
+                    if (ImGui::Button("+ Directional Light"))
+                        sel->AddLight(Pondo::LightType::Directional);
                 }
             }
             else {
@@ -352,13 +466,13 @@ void EditorLayer::OnRender()
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
     ImGui::Begin("Viewport##panel", nullptr,
-        ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
-        ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
-        ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoBringToFrontOnFocus);
+        ImGuiWindowFlags_NoTitleBar   | ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove       | ImGuiWindowFlags_NoScrollbar |
+        ImGuiWindowFlags_NoCollapse   | ImGuiWindowFlags_NoBringToFrontOnFocus);
     ImGui::PopStyleVar(2);
 
     ImVec2 contentPos = ImGui::GetCursorScreenPos();
-    ImVec2 panelSize = ImGui::GetContentRegionAvail();
+    ImVec2 panelSize  = ImGui::GetContentRegionAvail();
 
     if (panelSize.x > 0 && panelSize.y > 0)
     {
@@ -377,11 +491,11 @@ void EditorLayer::OnRender()
 
         glm::vec2 mouse = { io.MousePos.x, io.MousePos.y };
         bool overViewport = mouse.x >= contentPos.x && mouse.x < contentPos.x + panelSize.x &&
-            mouse.y >= contentPos.y && mouse.y < contentPos.y + panelSize.y;
-        bool lmbDown = io.MouseDown[0];
+                            mouse.y >= contentPos.y && mouse.y < contentPos.y + panelSize.y;
+        bool lmbDown    = io.MouseDown[0];
         bool lmbClicked = io.MouseClicked[0];
-        bool rmbDown = io.MouseDown[1];
-        bool dragging = m_SceneLayer->IsDraggingGizmo();
+        bool rmbDown    = io.MouseDown[1];
+        bool dragging   = m_SceneLayer->IsDraggingGizmo();
 
         m_SceneLayer->SetViewportFocused(overViewport && !dragging);
 
@@ -456,7 +570,7 @@ void EditorLayer::Undo()
     if (m_HistoryIndex < 0) return;
     m_History[m_HistoryIndex]->Undo();
     m_HistoryIndex--;
-    m_StatusText = "Undo";
+    m_StatusText  = "Undo";
     m_StatusTimer = 1.0f;
 }
 
@@ -465,7 +579,7 @@ void EditorLayer::Redo()
     if (m_HistoryIndex + 1 >= (int)m_History.size()) return;
     m_HistoryIndex++;
     m_History[m_HistoryIndex]->Redo();
-    m_StatusText = "Redo";
+    m_StatusText  = "Redo";
     m_StatusTimer = 1.0f;
 }
 
@@ -476,7 +590,7 @@ void EditorLayer::Redo()
 void EditorLayer::CreateEntity(int meshType)
 {
     static int count = 0;
-    const char* names[] = { "Cube", "Sphere", "Plane", "Cylinder" };
+    const char* names[]  = { "Cube", "Sphere", "Plane", "Cylinder" };
     glm::vec4   colors[] = {
         { 0.8f,  0.35f, 0.2f,  1 },
         { 0.2f,  0.55f, 0.85f, 1 },
@@ -486,9 +600,9 @@ void EditorLayer::CreateEntity(int meshType)
 
     std::shared_ptr<Pondo::Mesh> mesh;
     switch (meshType) {
-    case 1:  mesh = Pondo::Mesh::CreateSphere();      break;
-    case 2:  mesh = Pondo::Mesh::CreatePlane(1.0f);   break;
-    case 3:  mesh = Pondo::Mesh::CreateCylinder();    break;
+    case 1:  mesh = Pondo::Mesh::CreateSphere();    break;
+    case 2:  mesh = Pondo::Mesh::CreatePlane(1.0f); break;
+    case 3:  mesh = Pondo::Mesh::CreateCylinder();  break;
     default: mesh = Pondo::Mesh::CreateCube();
     }
 

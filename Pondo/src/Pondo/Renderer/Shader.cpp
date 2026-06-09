@@ -53,38 +53,38 @@ namespace Pondo {
 		glDeleteProgram(m_RendererID);
 	}
 
-	void Shader::Bind() const
-	{
-		glUseProgram(m_RendererID);
-	}
-
-	void Shader::Unbind() const
-	{
-		glUseProgram(0);
-	}
+	void Shader::Bind() const   { glUseProgram(m_RendererID); }
+	void Shader::Unbind() const { glUseProgram(0); }
 
 	void Shader::SetMat4(const std::string& name, const glm::mat4& matrix) const
 	{
-		int location = glGetUniformLocation(m_RendererID, name.c_str());
-		glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(matrix));
+		int loc = glGetUniformLocation(m_RendererID, name.c_str());
+		glUniformMatrix4fv(loc, 1, GL_FALSE, glm::value_ptr(matrix));
 	}
 
 	void Shader::SetFloat3(const std::string& name, const glm::vec3& vec) const
 	{
-		int location = glGetUniformLocation(m_RendererID, name.c_str());
-		glUniform3f(location, vec.x, vec.y, vec.z);
+		int loc = glGetUniformLocation(m_RendererID, name.c_str());
+		glUniform3f(loc, vec.x, vec.y, vec.z);
 	}
 
 	void Shader::SetFloat4(const std::string& name, const glm::vec4& vec) const
 	{
-		int location = glGetUniformLocation(m_RendererID, name.c_str());
-		glUniform4f(location, vec.x, vec.y, vec.z, vec.w);
+		int loc = glGetUniformLocation(m_RendererID, name.c_str());
+		glUniform4f(loc, vec.x, vec.y, vec.z, vec.w);
 	}
 
 	void Shader::SetInt(const std::string& name, int value) const
 	{
-		int location = glGetUniformLocation(m_RendererID, name.c_str());
-		glUniform1i(location, value);
+		int loc = glGetUniformLocation(m_RendererID, name.c_str());
+		glUniform1i(loc, value);
 	}
 
-}
+	// NEW — needed for scalar uniforms (intensity, attenuation coefficients, etc.)
+	void Shader::SetFloat(const std::string& name, float value) const
+	{
+		int loc = glGetUniformLocation(m_RendererID, name.c_str());
+		glUniform1f(loc, value);
+	}
+
+} // namespace Pondo

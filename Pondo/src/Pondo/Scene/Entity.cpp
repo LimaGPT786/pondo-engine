@@ -9,21 +9,17 @@ namespace Pondo {
     {
     }
 
-    uint32_t Entity::GetID() const { return m_ID; }
-
+    uint32_t           Entity::GetID()  const { return m_ID; }
     const std::string& Entity::GetTag() const { return m_Tag.Tag; }
+    void               Entity::SetTag(const std::string& tag) { m_Tag.Tag = tag; }
 
-    void Entity::SetTag(const std::string& tag) { m_Tag.Tag = tag; }
-
-    TransformComponent& Entity::GetTransform() { return m_Transform; }
-
+    TransformComponent&       Entity::GetTransform()       { return m_Transform; }
     const TransformComponent& Entity::GetTransform() const { return m_Transform; }
 
     MeshComponent* Entity::GetMesh()
     {
         return m_HasMesh ? &m_Mesh : nullptr;
     }
-
     const MeshComponent* Entity::GetMesh() const
     {
         return m_HasMesh ? &m_Mesh : nullptr;
@@ -33,10 +29,18 @@ namespace Pondo {
     {
         return m_HasMaterial ? &m_Material : nullptr;
     }
-
     const MaterialComponent* Entity::GetMaterial() const
     {
         return m_HasMaterial ? &m_Material : nullptr;
+    }
+
+    LightComponent* Entity::GetLight()
+    {
+        return m_HasLight ? &m_Light : nullptr;
+    }
+    const LightComponent* Entity::GetLight() const
+    {
+        return m_HasLight ? &m_Light : nullptr;
     }
 
     void Entity::SetMesh(std::shared_ptr<Mesh> mesh)
@@ -51,4 +55,16 @@ namespace Pondo {
         m_HasMaterial = true;
     }
 
-}
+    void Entity::AddLight(LightType type)
+    {
+        m_Light       = LightComponent{};
+        m_Light.Type  = type;
+        m_HasLight    = true;
+    }
+
+    void Entity::RemoveLight()
+    {
+        m_HasLight = false;
+    }
+
+} // namespace Pondo

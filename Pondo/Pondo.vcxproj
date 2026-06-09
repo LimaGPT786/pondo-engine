@@ -178,6 +178,7 @@ copy /B /Y ..\bin\Dist-windows-x86_64\Pondo\Pondo.dll ..\bin\Dist-windows-x86_64
     <ClInclude Include="src\Pondo\Renderer\Buffer.h" />
     <ClInclude Include="src\Pondo\Renderer\Camera.h" />
     <ClInclude Include="src\Pondo\Renderer\Framebuffer.h" />
+    <ClInclude Include="src\Pondo\Renderer\LightEnvironment.h" />
     <ClInclude Include="src\Pondo\Renderer\Material.h" />
     <ClInclude Include="src\Pondo\Renderer\Mesh.h" />
     <ClInclude Include="src\Pondo\Renderer\RayUtils.h" />

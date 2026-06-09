@@ -49,6 +49,108 @@ void SceneLayer::LoadScene(const std::string& path)
         m_SelectedEntity = entities[0].get();
 }
 
+void SceneLayer::CollectLights()
+{
+    auto ambient = m_Lights.AmbientColor;
+    auto intensity = m_Lights.AmbientIntensity;
+    auto sun = m_Lights.Sun;
+
+    m_Lights.Clear();
+
+    m_Lights.AmbientColor = ambient;
+    m_Lights.AmbientIntensity = intensity;
+    m_Lights.Sun = sun;
+
+    for (const auto& ep : m_Scene->GetEntities())
+    {
+        auto* e = ep.get();
+
+        if (!e->HasLight())
+            continue;
+
+        auto* lc = e->GetLight();
+
+        if (!lc)
+            continue;
+
+        const auto& tf =
+            e->GetTransform();
+
+        if (lc->Type == Pondo::LightType::Point)
+        {
+            if (m_Lights.PointLightCount >=
+                Pondo::MAX_POINT_LIGHTS)
+                continue;
+
+            auto& out =
+                m_Lights.PointLights[
+                    m_Lights.PointLightCount++
+                ];
+
+            out.Position =
+                tf.Position;
+
+            if (glm::length(lc->Color) < 0.01f)
+                out.Color = { 1.0f, 1.0f, 1.0f };
+            else
+                out.Color = lc->Color;
+
+            out.Intensity =
+                std::max(
+                    lc->Intensity,
+                    8.0f);
+
+            out.Constant =
+                1.0f;
+
+            out.Linear =
+                0.01f;
+
+            out.Quadratic =
+                0.0005f;
+
+            out.Range = lc->Range;
+        }
+
+        if (lc->Type == Pondo::LightType::Spot)
+        {
+            if (m_Lights.SpotLightCount >=
+                Pondo::MAX_SPOT_LIGHTS)
+                continue;
+
+            auto& out =
+                m_Lights.SpotLights[
+                    m_Lights.SpotLightCount++
+                ];
+
+            out.Position =
+                tf.Position;
+
+            out.Direction =
+                lc->Direction;
+
+            if (glm::length(lc->Color) < 0.01f)
+                out.Color = { 1.0f, 1.0f, 1.0f };
+            else
+                out.Color = lc->Color;
+
+            out.Intensity =
+                std::max(
+                    lc->Intensity,
+                    8.0f);
+
+            out.Constant =
+                lc->Constant;
+
+            out.Linear =
+                lc->Linear;
+
+            out.Quadratic =
+                lc->Quadratic;
+        }
+    }
+}
+
 Pondo::Entity* SceneLayer::SpawnEntity(const std::string& name,
     std::shared_ptr<Pondo::Mesh> mesh,
     glm::vec4 color,
@@ -59,6 +161,22 @@ Pondo::Entity* SceneLayer::SpawnEntity(const std::string& name,
     e->SetMesh(mesh);
     e->SetMaterial(std::make_shared<Pondo::Material>(m_Shader));
     e->GetMaterial()->Mat->SetColor(color);
+    return e;
+}
+
+Pondo::Entity* SceneLayer::SpawnLight(
+    const std::string& name,
+    Pondo::LightType type,
+    glm::vec3 pos)
+{
+    auto* e =
+        m_Scene->CreateEntity(name);
+
+    e->GetTransform().Position =
+        pos;
+
+    e->AddLight(type);
+
     return e;
 }
 
@@ -326,7 +444,13 @@ void SceneLayer::OnRender()
     m_Framebuffer->Bind();
     Pondo::Renderer::SetClearColor(0.12f, 0.12f, 0.13f, 1.0f);
     Pondo::Renderer::Clear();
-    Pondo::Renderer::BeginScene(*m_Camera);
+
+    CollectLights();
+
+    Pondo::Renderer::BeginScene(
+        *m_Camera,
+        m_Lights
+    );
 
     glEnable(GL_DEPTH_TEST);
     for (auto& ep : m_Scene->GetEntities()) {

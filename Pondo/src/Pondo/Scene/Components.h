@@ -24,7 +24,7 @@ namespace Pondo {
     struct PONDO_API TransformComponent {
         glm::vec3 Position = { 0.0f, 0.0f, 0.0f };
         glm::vec3 Rotation = { 0.0f, 0.0f, 0.0f };
-        glm::vec3 Scale = { 1.0f, 1.0f, 1.0f };
+        glm::vec3 Scale    = { 1.0f, 1.0f, 1.0f };
 
         TransformComponent() = default;
 
@@ -39,7 +39,6 @@ namespace Pondo {
         }
     };
 
-    // Mesh + material live on the entity so the scene owns everything
     struct PONDO_API MeshComponent {
         std::shared_ptr<Mesh> MeshData;
         MeshComponent() = default;
@@ -52,6 +51,42 @@ namespace Pondo {
         MaterialComponent(std::shared_ptr<Material> m) : Mat(std::move(m)) {}
     };
 
+    // ---- Light component (attach to any entity) -------------------
+    // Works like Roblox's PointLight / SpotLight / SurfaceLight parts.
+    // Directional acts as the global sun when SceneLayer collects lights.
+
+    enum class LightType : uint8_t
+    {
+        Directional = 0,
+        Point       = 1,
+        Spot        = 2,
+    };
+
+    struct PONDO_API LightComponent
+    {
+        LightType  Type      = LightType::Point;
+        bool       Enabled   = true;
+
+        glm::vec3  Color     = { 1.0f, 1.0f, 1.0f };
+        float      Intensity = 1.0f;
+
+        // Directional — direction the light faces (normalised world space).
+        // For point/spot the position is taken from TransformComponent.
+        glm::vec3  Direction = { -0.4f, -1.0f, -0.3f };
+
+        // Point & Spot attenuation
+        float      Range     = 10.0f;
+        float      Constant  = 1.0f;
+        float      Linear    = 0.09f;
+        float      Quadratic = 0.032f;
+
+        // Spot only
+        float      InnerCutoffDeg = 12.5f;
+        float      OuterCutoffDeg = 17.5f;
+
+        LightComponent() = default;
+    };
+
 #pragma warning(pop)
 
-}
+} // namespace Pondo

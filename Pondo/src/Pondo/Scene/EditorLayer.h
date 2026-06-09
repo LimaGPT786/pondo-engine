@@ -56,6 +56,7 @@ private:
     bool m_ShowScene = true;
     bool m_ShowProps = true;
     bool m_ShowStats = true;
+    bool m_ShowLighting = true;
 
     bool  m_EnableSnapping = false;
     float m_MoveIncrement = 0.5f;
