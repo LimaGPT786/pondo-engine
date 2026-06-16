@@ -970,41 +970,13 @@ void SceneLayer::OnRender()
     for (auto& ep : m_Scene->GetEntities()) {
         auto* mc = ep->GetMesh();
         auto* mat = ep->GetMaterial();
-        if (!mc || !mat || !mc->MeshData || !mat->Mat) continue;
+        if (!mc || !mc->MeshData) continue;
+        if (!mat || !mat->Mat) continue;
 
-        bool negate =
-            ep->IsNegate();
-
-        if (negate)
-        {
-            glm::vec4 original =
-                mat->Mat->GetColor();
-
-            mat->Mat->SetColor(
-                {
-                    1.0f,
-                    0.55f,
-                    0.55f,
-                    1.0f
-                });
-
-            Pondo::Renderer::SubmitMesh(
-                mc->MeshData,
-                mat->Mat,
-                ep->GetTransform()
-                .GetTransform());
-
-            mat->Mat->SetColor(
-                original);
-        }
-        else
-        {
-            Pondo::Renderer::SubmitMesh(
-                mc->MeshData,
-                mat->Mat,
-                ep->GetTransform()
-                .GetTransform());
-        }
+        Pondo::Renderer::SubmitMesh(
+            mc->MeshData,
+            mat->Mat,
+            ep->GetTransform().GetTransform());
     }
 
     m_FlatShader->Bind();
@@ -1462,46 +1434,53 @@ void SceneLayer::NegateSelected()
 
     for (auto* e : m_Selection)
     {
-        if (!e || !e->InGroup())
-            continue;
+        if (!e) continue;
 
-        auto* gc = e->GetGroup();
-        if (!gc) continue;
-
-        bool neg = !gc->IsNegate;
-        e->SetGroup(gc->ParentID, neg);
-
-        if (e->HasMaterial())
+        if (e->InGroup())
         {
-            auto* mat = e->GetMaterial();
-            if (mat && mat->Mat)
-            {
-                mat->Mat->SetColor(neg
-                    ? glm::vec4{ 1.0f, 0.35f, 0.35f, 1.0f }
-                    : glm::vec4{ 1.0f, 1.0f,  1.0f,  1.0f });
-            }
+            // Already in a group — toggle the GroupComponent flag
+            auto* gc = e->GetGroup();
+            if (!gc) continue;
+            bool neg = !gc->IsNegate;
+            e->SetGroup(gc->ParentID, neg);
+            if (e->HasMaterial() && e->GetMaterial()->Mat)
+                e->GetMaterial()->Mat->SetColor(neg
+                    ? glm::vec4{ 0.85f, 0.25f, 0.25f, 1.0f }
+            : glm::vec4{ 0.85f, 0.85f, 0.85f, 1.0f });
+        }
+        else if (!e->IsGroupRoot())
+        {
+            // Standalone entity — toggle pending negate flag
+            bool neg = !e->HasPendingNegate();
+            e->SetPendingNegate(neg);
+            if (e->HasMaterial() && e->GetMaterial()->Mat)
+                e->GetMaterial()->Mat->SetColor(neg
+                    ? glm::vec4{ 0.85f, 0.25f, 0.25f, 1.0f }
+            : glm::vec4{ 0.85f, 0.85f, 0.85f, 1.0f });
         }
     }
 }
 
 Pondo::Entity* SceneLayer::CreateGroup(const std::string& name)
 {
-    // Snapshot IDs before CreateEntity, which may reallocate m_Entities
     std::vector<uint32_t> selIDs;
     selIDs.reserve(m_Selection.size());
     for (auto* e : m_Selection) selIDs.push_back(e->GetID());
 
-    // Create the group root entity (no mesh)
     auto* root = m_Scene->CreateEntity(name);
     root->MakeGroupRoot(name);
     uint32_t rootID = root->GetID();
 
-    // Parent all previously-selected entities into this group
     for (uint32_t id : selIDs)
     {
         auto* e = m_Scene->FindEntity(id);
         if (e && !e->IsGroupRoot())
-            e->SetGroup(rootID, false);
+        {
+            // Transfer any pending-negate flag into the group membership
+            bool neg = e->HasPendingNegate();
+            e->SetPendingNegate(false);
+            e->SetGroup(rootID, neg);
+        }
     }
 
     m_Selection.clear();
@@ -1516,8 +1495,10 @@ void SceneLayer::UngroupSelected()
     if (!root->IsGroupRoot()) return;
 
     uint32_t rootID = root->GetID();
+    auto* gr = root->GetGroupRoot();
+    bool isUnioned = gr && gr->Unioned;
 
-    // Remove group membership from all children
+    // Free any remaining children from the group
     for (auto& ep : m_Scene->GetEntities())
     {
         auto* gc = ep->GetGroup();
@@ -1525,9 +1506,71 @@ void SceneLayer::UngroupSelected()
             ep->RemoveFromGroup();
     }
 
-    // Destroy the root entity
-    m_Scene->DestroyEntity(rootID);
-    m_Selection.clear();
+    if (isUnioned)
+    {
+        // Root holds the baked mesh result — demote it to a plain entity
+        root->RemoveGroupRoot();
+        m_Selection.clear();
+        m_Selection.push_back(m_Scene->FindEntity(rootID));
+    }
+    else
+    {
+        m_Scene->DestroyEntity(rootID);
+        m_Selection.clear();
+    }
+}
+
+static void WeldAndClean(
+    std::vector<double>& coords,
+    std::vector<uint32_t>& faces,
+    std::vector<uint32_t>& faceSizes)
+{
+    const double EPS = 1e-6;
+    size_t numVerts = coords.size() / 3;
+
+    // Build remap: for each vertex, find the first equivalent vertex
+    std::vector<uint32_t> remap(numVerts);
+    std::vector<double> welded;
+    welded.reserve(coords.size());
+
+    for (size_t i = 0; i < numVerts; i++)
+    {
+        double x = coords[i * 3 + 0], y = coords[i * 3 + 1], z = coords[i * 3 + 2];
+        uint32_t found = (uint32_t)welded.size() / 3;
+        for (size_t j = 0; j < welded.size() / 3; j++)
+        {
+            double dx = welded[j * 3 + 0] - x, dy = welded[j * 3 + 1] - y, dz = welded[j * 3 + 2] - z;
+            if (dx * dx + dy * dy + dz * dz < EPS * EPS) { found = (uint32_t)j; break; }
+        }
+        if (found == (uint32_t)welded.size() / 3)
+        {
+            welded.push_back(x); welded.push_back(y); welded.push_back(z);
+        }
+        remap[i] = found;
+    }
+
+    // Rebuild faces, skipping degenerate triangles
+    std::vector<uint32_t> newFaces, newFaceSizes;
+    size_t fi = 0;
+    for (uint32_t fs : faceSizes)
+    {
+        if (fs == 3)
+        {
+            uint32_t a = remap[faces[fi]], b = remap[faces[fi + 1]], c = remap[faces[fi + 2]];
+            if (a != b && b != c && a != c)
+            {
+                newFaces.push_back(a);
+                newFaces.push_back(b);
+                newFaces.push_back(c);
+                newFaceSizes.push_back(3);
+            }
+        }
+        fi += fs;
+    }
+
+    coords = welded;
+    faces = newFaces;
+    faceSizes = newFaceSizes;
 }
 
 static std::shared_ptr<Pondo::Mesh> SubtractMeshes(
@@ -1549,13 +1592,12 @@ static std::shared_ptr<Pondo::Mesh> SubtractMeshes(
         negVerts.empty() || negIndices.empty() ||
         posIndices.size() % 3 != 0 || negIndices.size() % 3 != 0)
     {
-        return pos->MeshData; // passthrough — nothing to cut
+        return std::make_shared<Pondo::Mesh>(posVerts, posIndices);
     }
 
     glm::mat4 posTf = positive->GetTransform().GetTransform();
     glm::mat4 negTf = negative->GetTransform().GetTransform();
 
-    // World-space vertex arrays (double precision — mcut requirement)
     std::vector<double> srcCoords, cutCoords;
     srcCoords.reserve(posVerts.size() * 3);
     cutCoords.reserve(negVerts.size() * 3);
@@ -1579,6 +1621,14 @@ static std::shared_ptr<Pondo::Mesh> SubtractMeshes(
     McContext ctx = MC_NULL_HANDLE;
     mcCreateContext(&ctx, MC_NULL_HANDLE);
 
+    WeldAndClean(srcCoords, srcFaces, srcFaceSizes);
+    WeldAndClean(cutCoords, cutFaces, cutFaceSizes);
+
+    if (srcFaces.empty() || cutFaces.empty()) {
+        mcReleaseContext(ctx);
+        return std::make_shared<Pondo::Mesh>(posVerts, posIndices);
+    }
+
     McResult r = mcDispatch(
         ctx,
         MC_DISPATCH_VERTEX_ARRAY_DOUBLE,
@@ -1590,7 +1640,7 @@ static std::shared_ptr<Pondo::Mesh> SubtractMeshes(
 
     if (r != MC_NO_ERROR) {
         mcReleaseContext(ctx);
-        return pos->MeshData;
+        return std::make_shared<Pondo::Mesh>(posVerts, posIndices);
     }
 
     uint32_t numCC = 0;
@@ -1598,63 +1648,63 @@ static std::shared_ptr<Pondo::Mesh> SubtractMeshes(
 
     if (numCC == 0) {
         mcReleaseContext(ctx);
-        return pos->MeshData;
+        return std::make_shared<Pondo::Mesh>(posVerts, posIndices);
     }
 
     std::vector<McConnectedComponent> comps(numCC);
     mcGetConnectedComponents(ctx, MC_CONNECTED_COMPONENT_TYPE_FRAGMENT, numCC, comps.data(), nullptr);
 
-    // Collect ALL above-fragments and merge them (handles disconnected results)
+    // Try ABOVE first (A - B). If nothing, fall back to BELOW (handles inverted winding).
     std::vector<Pondo::Vertex> finalVerts;
     std::vector<unsigned int>  finalIdx;
 
-    for (auto& cc : comps)
+    for (int pass = 0; pass < 2 && finalVerts.empty(); pass++)
     {
-        McFragmentLocation loc;
-        mcGetConnectedComponentData(ctx, cc, MC_CONNECTED_COMPONENT_DATA_FRAGMENT_LOCATION,
-            sizeof(loc), &loc, nullptr);
-        if (loc != MC_FRAGMENT_LOCATION_ABOVE)
-            continue;
+        McFragmentLocation wantLoc = (pass == 0)
+            ? MC_FRAGMENT_LOCATION_ABOVE
+            : MC_FRAGMENT_LOCATION_BELOW;
 
-        // Extract vertices
-        uint64_t vertBytes = 0;
-        mcGetConnectedComponentData(ctx, cc, MC_CONNECTED_COMPONENT_DATA_VERTEX_DOUBLE,
-            0, nullptr, &vertBytes);
-        std::vector<double> outVerts(vertBytes / sizeof(double));
-        mcGetConnectedComponentData(ctx, cc, MC_CONNECTED_COMPONENT_DATA_VERTEX_DOUBLE,
-            vertBytes, outVerts.data(), nullptr);
+        for (auto& cc : comps)
+        {
+            McFragmentLocation loc;
+            mcGetConnectedComponentData(ctx, cc, MC_CONNECTED_COMPONENT_DATA_FRAGMENT_LOCATION,
+                sizeof(loc), &loc, nullptr);
+            if (loc != wantLoc) continue;
 
-        // Extract triangulated indices
-        uint64_t idxBytes = 0;
-        mcGetConnectedComponentData(ctx, cc, MC_CONNECTED_COMPONENT_DATA_FACE_TRIANGULATION,
-            0, nullptr, &idxBytes);
-        std::vector<uint32_t> outIdx(idxBytes / sizeof(uint32_t));
-        mcGetConnectedComponentData(ctx, cc, MC_CONNECTED_COMPONENT_DATA_FACE_TRIANGULATION,
-            idxBytes, outIdx.data(), nullptr);
+            uint64_t vertBytes = 0;
+            mcGetConnectedComponentData(ctx, cc, MC_CONNECTED_COMPONENT_DATA_VERTEX_DOUBLE,
+                0, nullptr, &vertBytes);
+            std::vector<double> outVerts(vertBytes / sizeof(double));
+            mcGetConnectedComponentData(ctx, cc, MC_CONNECTED_COMPONENT_DATA_VERTEX_DOUBLE,
+                vertBytes, outVerts.data(), nullptr);
 
-        if (outVerts.empty() || outIdx.empty()) continue;
+            uint64_t idxBytes = 0;
+            mcGetConnectedComponentData(ctx, cc, MC_CONNECTED_COMPONENT_DATA_FACE_TRIANGULATION,
+                0, nullptr, &idxBytes);
+            std::vector<uint32_t> outIdx(idxBytes / sizeof(uint32_t));
+            mcGetConnectedComponentData(ctx, cc, MC_CONNECTED_COMPONENT_DATA_FACE_TRIANGULATION,
+                idxBytes, outIdx.data(), nullptr);
 
-        uint32_t base = (uint32_t)finalVerts.size();
+            if (outVerts.empty() || outIdx.empty()) continue;
 
-        for (size_t i = 0; i + 2 < outVerts.size(); i += 3) {
-            Pondo::Vertex v;
-            v.Position = { (float)outVerts[i], (float)outVerts[i + 1], (float)outVerts[i + 2] };
-            v.Normal = { 0.0f, 1.0f, 0.0f }; // recalculated below
-            v.TexCoord = { 0.0f, 0.0f };
-            finalVerts.push_back(v);
+            uint32_t base = (uint32_t)finalVerts.size();
+            for (size_t i = 0; i + 2 < outVerts.size(); i += 3) {
+                Pondo::Vertex v;
+                v.Position = { (float)outVerts[i], (float)outVerts[i + 1], (float)outVerts[i + 2] };
+                v.Normal = { 0.f, 1.f, 0.f };
+                v.TexCoord = { 0.f, 0.f };
+                finalVerts.push_back(v);
+            }
+            for (auto i : outIdx) finalIdx.push_back((unsigned int)(i + base));
         }
-        for (auto i : outIdx)
-            finalIdx.push_back((unsigned int)(i + base));
     }
 
     mcReleaseContext(ctx);
 
     if (finalVerts.empty() || finalIdx.empty())
-        return pos->MeshData; // mcut gave nothing usable
+        return std::make_shared<Pondo::Mesh>(posVerts, posIndices);
 
-    // Smooth normals across the whole merged result
     RecalcNormalsSmooth(finalVerts, finalIdx);
-
     return std::make_shared<Pondo::Mesh>(finalVerts, finalIdx);
 }
 
@@ -1768,8 +1818,21 @@ SceneLayer::UnionResult SceneLayer::UnionGroup()
     // Re-fetch tempRoot too (FindEntity is safe)
     tempRoot = m_Scene->FindEntity(tempRootID);
 
-    tempRoot->SetMesh(positives[0]->GetMesh()->MeshData);
-    tempRoot->GetTransform() = positives[0]->GetTransform();
+    // Bake positives[0] transform into world space before combining
+    {
+        glm::mat4 tf0 = positives[0]->GetTransform().GetTransform();
+        const auto& rawV = positives[0]->GetMesh()->MeshData->GetVertices();
+        const auto& rawI = positives[0]->GetMesh()->MeshData->GetIndices();
+        std::vector<Pondo::Vertex> baked;
+        baked.reserve(rawV.size());
+        for (auto v : rawV) {
+            glm::vec4 p = tf0 * glm::vec4(v.Position, 1.0f);
+            v.Position = { p.x, p.y, p.z };
+            baked.push_back(v);
+        }
+        tempRoot->SetMesh(std::make_shared<Pondo::Mesh>(baked, rawI));
+        tempRoot->GetTransform() = {};
+    }
 
     for (size_t i = 1; i < positives.size(); i++)
     {
@@ -1799,8 +1862,11 @@ SceneLayer::UnionResult SceneLayer::UnionGroup()
     std::shared_ptr<Pondo::Mesh>     finalMesh;
     std::shared_ptr<Pondo::Material> finalMat;
 
-    if (tempRoot->GetMesh())
+    if (tempRoot->GetMesh() && tempRoot->GetMesh()->MeshData)
         finalMesh = tempRoot->GetMesh()->MeshData;
+
+    if (!finalMesh || finalMesh->GetVertices().empty())
+        return UnionResult::MeshOperationFailed;
 
     if (positives[0]->GetMaterial() && positives[0]->GetMaterial()->Mat)
         finalMat = positives[0]->GetMaterial()->Mat;
@@ -1834,7 +1900,7 @@ SceneLayer::UnionResult SceneLayer::UnionGroup()
     if (finalMat)
     {
         root->SetMaterial(std::make_shared<Pondo::Material>(m_Shader));
-        root->GetMaterial()->Mat = finalMat;
+        root->GetMaterial()->Mat->SetColor(finalMat->GetColor());
     }
 
     if (auto* gr = root->GetGroupRoot())
@@ -1854,13 +1920,20 @@ void SceneLayer::SeparateSelected()
     if (!root || !root->IsGroupRoot())
         return;
 
-    // Separate can't reconstruct destroyed children — instead just ungroup
-    // the root so it becomes a standalone mesh entity again.
     uint32_t rootID = root->GetID();
 
-    m_Selection.clear();
-    auto* e = m_Scene->FindEntity(rootID);
-    if (e) m_Selection.push_back(e);
+    auto* gr = root->GetGroupRoot();
+    if (gr && gr->Unioned)
+    {
+        // Baked union — can't restore original parts, just demote to plain mesh
+        m_Selection.clear();
+        auto* e = m_Scene->FindEntity(rootID);
+        if (e) m_Selection.push_back(e);
+        return;
+    }
+
+    // Not yet unioned — children still exist, ungroup them and remove root
+    UngroupSelected();
 }
 
 std::vector<Pondo::Entity*>

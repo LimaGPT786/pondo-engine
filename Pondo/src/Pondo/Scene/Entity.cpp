@@ -162,6 +162,23 @@ namespace Pondo {
         auto& gr = m_Registry->get_or_emplace<GroupRootComponent>(m_Handle);
         gr.Name = name;
     }
+    void Entity::RemoveGroupRoot()
+    {
+        m_Registry->remove<GroupRootComponent>(m_Handle);
+    }
+    bool Entity::HasPendingNegate() const
+    {
+        return m_Registry->all_of<PendingNegateComponent>(m_Handle);
+    }
+
+    void Entity::SetPendingNegate(bool on)
+    {
+        if (on)
+            m_Registry->get_or_emplace<PendingNegateComponent>(m_Handle);
+        else
+            m_Registry->remove<PendingNegateComponent>(m_Handle);
+    }
+
     bool Entity::IsGroupRoot() const
     {
         return m_Registry->all_of<GroupRootComponent>(m_Handle);

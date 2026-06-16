@@ -115,6 +115,13 @@ namespace Pondo {
         }
     };
 
+    // Marks a standalone (pre-group) entity as a boolean subtractor.
+    // Consumed by CreateGroup: transferred into GroupComponent::IsNegate.
+    struct PONDO_API PendingNegateComponent
+    {
+        PendingNegateComponent() = default;
+    };
+
 #pragma warning(pop)
 
 } // namespace Pondo

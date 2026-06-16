@@ -271,9 +271,8 @@ void EditorLayer::OnRender()
     auto* toolbarPrimary = m_SceneLayer->GetSelectedEntity();
     bool        inEditMode = (playState == SceneLayer::PlayState::Edit);
 
-    bool canUnion = true;
-    bool canNegate = true;
-    bool canSeparate = true;
+    bool canUnion = inEditMode && toolbarSel.size() >= 2;
+    bool canSeparate = inEditMode && toolbarPrimary && toolbarPrimary->IsGroupRoot();
 
     // Toolbar is centered and wide enough for Play + Stop + 3 CSG buttons
     const float toolbarW = 420.0f;
@@ -328,7 +327,12 @@ void EditorLayer::OnRender()
         canUnion ? ImVec4{ 0.18f, 0.38f, 0.65f, 1 } : ImVec4{ 0.25f, 0.25f, 0.25f, 1 });
     if (ImGui::Button("Union", { 72, 24 }) && canUnion)
     {
-        m_SceneLayer->CreateGroup("Union");
+        // If selection is NOT already a group root, group it first then union.
+        // If it IS already a group root, just union it directly.
+        auto* primary = m_SceneLayer->GetSelectedEntity();
+        if (primary && !primary->IsGroupRoot())
+            m_SceneLayer->CreateGroup("Union");
+
         auto result = m_SceneLayer->UnionGroup();
         switch (result)
         {
@@ -349,7 +353,7 @@ void EditorLayer::OnRender()
             m_ShowUnionError = true;
             break;
         case SceneLayer::UnionResult::NoChildren:
-            m_UnionErrorMsg = "Union failed: the group has no mesh children.";
+            m_UnionErrorMsg = "Union failed: select at least 2 mesh parts first.";
             m_ShowUnionError = true;
             break;
         default:
@@ -362,19 +366,30 @@ void EditorLayer::OnRender()
 
     // ---- Negate ----
     {
-        // Tint button orange if any selected child is already negated (to show toggle)
-        bool anyNegated = canNegate && std::any_of(toolbarSel.begin(), toolbarSel.end(),
-            [](Pondo::Entity* e) { return e && e->InGroup() && e->IsNegate(); });
+        bool anyNegatable = inEditMode && std::any_of(toolbarSel.begin(), toolbarSel.end(),
+            [](Pondo::Entity* e) {
+                return e && !e->IsGroupRoot() && (e->InGroup() || !e->IsGroupRoot());
+            });
+        bool anyNegated = std::any_of(toolbarSel.begin(), toolbarSel.end(),
+            [](Pondo::Entity* e) {
+                if (!e || e->IsGroupRoot()) return false;
+                if (e->InGroup()) return e->IsNegate();
+                return e->HasPendingNegate();
+            });
+        bool canNegate = inEditMode && !toolbarSel.empty() && std::any_of(toolbarSel.begin(), toolbarSel.end(),
+            [](Pondo::Entity* e) { return e && !e->IsGroupRoot(); });
         ImGui::PushStyleColor(ImGuiCol_Button,
             !canNegate ? ImVec4{ 0.25f, 0.25f, 0.25f, 1 } :
             anyNegated ? ImVec4{ 0.65f, 0.30f, 0.10f, 1 } :
             ImVec4{ 0.50f, 0.22f, 0.08f, 1 });
-        if (ImGui::Button("Negate", { 72, 24 }) && canNegate)
+        if (!canNegate) ImGui::BeginDisabled();
+        if (ImGui::Button("Negate", { 72, 24 }))
         {
             m_SceneLayer->NegateSelected();
-            m_StatusText = "Negate toggled.";
+            m_StatusText = anyNegated ? "Negate removed." : "Negate applied.";
             m_StatusTimer = 2.0f;
         }
+        if (!canNegate) ImGui::EndDisabled();
         ImGui::PopStyleColor();
     }
 
@@ -383,12 +398,14 @@ void EditorLayer::OnRender()
     // ---- Separate ----
     ImGui::PushStyleColor(ImGuiCol_Button,
         canSeparate ? ImVec4{ 0.40f, 0.18f, 0.55f, 1 } : ImVec4{ 0.25f, 0.25f, 0.25f, 1 });
-    if (ImGui::Button("Separate", { 80, 24 }) && canSeparate)
+    if (!canSeparate) ImGui::BeginDisabled();
+    if (ImGui::Button("Separate", { 80, 24 }))
     {
         m_SceneLayer->UngroupSelected();
         m_StatusText = "Group separated.";
         m_StatusTimer = 2.0f;
     }
+    if (!canSeparate) ImGui::EndDisabled();
     ImGui::PopStyleColor();
 
     ImGui::End(); // ##Toolbar

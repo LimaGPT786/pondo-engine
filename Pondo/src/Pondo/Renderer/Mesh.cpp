@@ -8,7 +8,9 @@ namespace Pondo {
 	Mesh::Mesh(const std::vector<Vertex>& vertices,
 		const std::vector<unsigned int>& indices)
 		: m_IndexCount((unsigned int)indices.size()),
-		m_VertexCount((unsigned int)vertices.size())
+		m_VertexCount((unsigned int)vertices.size()),
+		m_Vertices(vertices),
+		m_Indices(indices)
 	{
 		glGenVertexArrays(1, &m_VAO_ID);
 		glBindVertexArray(m_VAO_ID);

@@ -64,10 +64,14 @@ namespace Pondo {
         GroupRootComponent* GetGroupRoot();
         const GroupRootComponent* GetGroupRoot() const;
         void                      MakeGroupRoot(const std::string& name = "Group");
+        void RemoveGroupRoot();
         bool                      IsGroupRoot() const;
 
         GroupComponent* GetGroup();
         const GroupComponent* GetGroup() const;
+        bool HasPendingNegate() const;
+        void SetPendingNegate(bool on);
+
         void                      SetGroup(uint32_t parentID, bool negate = false);
         void                      RemoveFromGroup();
         bool                      InGroup() const;
