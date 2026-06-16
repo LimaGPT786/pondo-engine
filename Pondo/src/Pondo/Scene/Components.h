@@ -87,6 +87,34 @@ namespace Pondo {
         LightComponent() = default;
     };
 
+    struct PONDO_API ScriptComponent
+    {
+        std::string ScriptPath;   // path to .lua file on disk
+        bool        HasError = false;
+        std::string ErrorMsg;
+
+        ScriptComponent() = default;
+        ScriptComponent(const std::string& path) : ScriptPath(path) {}
+    };
+
+    struct PONDO_API GroupRootComponent
+    {
+        std::string Name = "Group";
+        bool        Unioned = false; // true = CSG baked (phase 2)
+        GroupRootComponent() = default;
+        GroupRootComponent(const std::string& n) : Name(n) {}
+    };
+
+    struct PONDO_API GroupComponent
+    {
+        uint32_t ParentID = 0;      // ID of the GroupRoot entity
+        bool     IsNegate = false;  // true = subtracts in CSG union
+        GroupComponent() = default;
+        GroupComponent(uint32_t pid, bool negate = false)
+            : ParentID(pid), IsNegate(negate) {
+        }
+    };
+
 #pragma warning(pop)
 
 } // namespace Pondo

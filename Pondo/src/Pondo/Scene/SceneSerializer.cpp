@@ -3,11 +3,13 @@
 #include "Pondo/Scene/Entity.h"
 #include "Pondo/Renderer/Mesh.h"
 #include "Pondo/Renderer/Material.h"
+#include "Pondo/Log.h"
 
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <filesystem>
+#include <unordered_map>
 
 namespace Pondo
 {
@@ -27,7 +29,7 @@ namespace Pondo
         {
             auto& tf = entity->GetTransform();
 
-            std::string meshType = "Cube";
+            std::string meshType = "None";
             if (auto* mc = entity->GetMesh(); mc && mc->MeshData)
                 meshType = mc->MeshData->GetType();
 
@@ -36,33 +38,38 @@ namespace Pondo
                 color = mat->Mat->GetColor();
 
             file << "BeginEntity\n";
-            file << "Name "     << entity->GetTag() << "\n";
-            file << "Mesh "     << meshType << "\n";
+            file << "ID " << entity->GetID() << "\n";   // stable key for group remap on load
+            file << "Name " << entity->GetTag() << "\n";
+            file << "Mesh " << meshType << "\n";
             file << "Position " << tf.Position.x << " " << tf.Position.y << " " << tf.Position.z << "\n";
             file << "Rotation " << tf.Rotation.x << " " << tf.Rotation.y << " " << tf.Rotation.z << "\n";
-            file << "Scale "    << tf.Scale.x    << " " << tf.Scale.y    << " " << tf.Scale.z    << "\n";
-            file << "Color "    << color.r << " " << color.g << " " << color.b << " " << color.a << "\n";
+            file << "Scale " << tf.Scale.x << " " << tf.Scale.y << " " << tf.Scale.z << "\n";
+            file << "Color " << color.r << " " << color.g << " " << color.b << " " << color.a << "\n";
 
-            // Serialize light component if present
+            // Light
             if (auto* lc = entity->GetLight(); lc)
             {
                 file << "Light "
-                     << (int)lc->Type      << " "
-                     << (int)lc->Enabled   << " "
-                     << lc->Color.r        << " "
-                     << lc->Color.g        << " "
-                     << lc->Color.b        << " "
-                     << lc->Intensity      << " "
-                     << lc->Direction.x    << " "
-                     << lc->Direction.y    << " "
-                     << lc->Direction.z    << " "
-                     << lc->Range          << " "
-                     << lc->Constant       << " "
-                     << lc->Linear         << " "
-                     << lc->Quadratic      << " "
-                     << lc->InnerCutoffDeg << " "
-                     << lc->OuterCutoffDeg << "\n";
+                    << (int)lc->Type << " "
+                    << (int)lc->Enabled << " "
+                    << lc->Color.r << " " << lc->Color.g << " " << lc->Color.b << " "
+                    << lc->Intensity << " "
+                    << lc->Direction.x << " " << lc->Direction.y << " " << lc->Direction.z << " "
+                    << lc->Range << " " << lc->Constant << " " << lc->Linear << " "
+                    << lc->Quadratic << " " << lc->InnerCutoffDeg << " " << lc->OuterCutoffDeg << "\n";
             }
+
+            // Script
+            if (auto* sc = entity->GetScript(); sc && !sc->ScriptPath.empty())
+                file << "Script " << sc->ScriptPath << "\n";
+
+            // Group root
+            if (auto* gr = entity->GetGroupRoot(); gr)
+                file << "GroupRoot " << (int)gr->Unioned << "\n";
+
+            // Group membership
+            if (auto* gc = entity->GetGroup(); gc)
+                file << "Group " << gc->ParentID << " " << (int)gc->IsNegate << "\n";
 
             file << "EndEntity\n\n";
         }
@@ -72,9 +79,9 @@ namespace Pondo
     }
 
     bool SceneSerializer::Load(Scene* scene, const std::string& path,
-                               const std::shared_ptr<Shader>& shader)
+        const std::shared_ptr<Shader>& shader)
     {
-        if (!scene)  { std::cout << "[Pondo] Load: null scene\n";  return false; }
+        if (!scene) { std::cout << "[Pondo] Load: null scene\n";  return false; }
         if (!shader) { std::cout << "[Pondo] Load: null shader\n"; return false; }
 
         auto full = std::filesystem::absolute(path);
@@ -87,13 +94,27 @@ namespace Pondo
 
         scene->Clear();
 
-        std::string line;
-        std::string  name = "Entity", meshType = "Cube";
-        glm::vec3    pos{}, rot{}, scale{ 1, 1, 1 };
-        glm::vec4    color{ 1, 1, 1, 1 };
-        bool         hasLight    = false;
-        LightComponent lightData;
+        struct RawEntity
+        {
+            uint32_t    savedID = 0;
+            std::string name = "Entity", meshType = "Cube";
+            glm::vec3   pos{}, rot{}, scale{ 1, 1, 1 };
+            glm::vec4   color{ 1, 1, 1, 1 };
+            bool        hasLight = false;
+            bool        hasScript = false;
+            bool        isGroupRoot = false;
+            bool        groupUnioned = false;
+            bool        inGroup = false;
+            uint32_t    groupParent = 0;
+            bool        isNegate = false;
+            std::string scriptPath;
+            LightComponent light;
+        };
 
+        std::vector<RawEntity> raws;
+        RawEntity current;
+
+        std::string line;
         while (std::getline(file, line))
         {
             if (line.empty()) continue;
@@ -103,58 +124,115 @@ namespace Pondo
 
             if (token == "BeginEntity")
             {
-                name = "Entity"; meshType = "Cube";
-                pos = {}; rot = {}; scale = { 1, 1, 1 }; color = { 1, 1, 1, 1 };
-                hasLight = false;
-                lightData = LightComponent{};
+                current = RawEntity{};
             }
+            else if (token == "ID") { ss >> current.savedID; }
             else if (token == "Name")
             {
-                std::getline(ss, name);
-                if (!name.empty() && name[0] == ' ') name = name.substr(1);
+                std::getline(ss, current.name);
+                if (!current.name.empty() && current.name[0] == ' ')
+                    current.name = current.name.substr(1);
             }
-            else if (token == "Mesh")     { ss >> meshType; }
-            else if (token == "Position") { ss >> pos.x   >> pos.y   >> pos.z; }
-            else if (token == "Rotation") { ss >> rot.x   >> rot.y   >> rot.z; }
-            else if (token == "Scale")    { ss >> scale.x >> scale.y >> scale.z; }
-            else if (token == "Color")    { ss >> color.r >> color.g >> color.b >> color.a; }
+            else if (token == "Mesh") { ss >> current.meshType; }
+            else if (token == "Position") { ss >> current.pos.x >> current.pos.y >> current.pos.z; }
+            else if (token == "Rotation") { ss >> current.rot.x >> current.rot.y >> current.rot.z; }
+            else if (token == "Scale") { ss >> current.scale.x >> current.scale.y >> current.scale.z; }
+            else if (token == "Color") { ss >> current.color.r >> current.color.g >> current.color.b >> current.color.a; }
             else if (token == "Light")
             {
                 int type, enabled;
                 ss >> type >> enabled
-                   >> lightData.Color.r     >> lightData.Color.g     >> lightData.Color.b
-                   >> lightData.Intensity
-                   >> lightData.Direction.x >> lightData.Direction.y >> lightData.Direction.z
-                   >> lightData.Range       >> lightData.Constant    >> lightData.Linear
-                   >> lightData.Quadratic   >> lightData.InnerCutoffDeg >> lightData.OuterCutoffDeg;
-                lightData.Type    = (LightType)type;
-                lightData.Enabled = (bool)enabled;
-                hasLight = true;
+                    >> current.light.Color.r >> current.light.Color.g >> current.light.Color.b
+                    >> current.light.Intensity
+                    >> current.light.Direction.x >> current.light.Direction.y >> current.light.Direction.z
+                    >> current.light.Range >> current.light.Constant >> current.light.Linear
+                    >> current.light.Quadratic >> current.light.InnerCutoffDeg >> current.light.OuterCutoffDeg;
+                current.light.Type = (LightType)type;
+                current.light.Enabled = (bool)enabled;
+                current.hasLight = true;
+            }
+            else if (token == "Script")
+            {
+                std::getline(ss, current.scriptPath);
+                if (!current.scriptPath.empty() && current.scriptPath[0] == ' ')
+                    current.scriptPath = current.scriptPath.substr(1);
+                current.hasScript = true;
+            }
+            else if (token == "GroupRoot")
+            {
+                int unioned;
+                ss >> unioned;
+                current.isGroupRoot = true;
+                current.groupUnioned = (bool)unioned;
+            }
+            else if (token == "Group")
+            {
+                ss >> current.groupParent >> current.isNegate;
+                current.inGroup = true;
             }
             else if (token == "EndEntity")
             {
-                std::shared_ptr<Mesh> mesh;
-                if      (meshType == "Sphere")   mesh = Mesh::CreateSphere();
-                else if (meshType == "Plane")     mesh = Mesh::CreatePlane(1.0f);
-                else if (meshType == "Cylinder")  mesh = Mesh::CreateCylinder();
-                else                              mesh = Mesh::CreateCube();
+                raws.push_back(current);
+            }
+        }
 
-                auto* e  = scene->CreateEntity(name);
-                auto& tf = e->GetTransform();
-                tf.Position = pos;
-                tf.Rotation = rot;
-                tf.Scale    = scale;
+        // Pass 1: create all entities and build savedID -> runtime Entity* map.
+        std::unordered_map<uint32_t, Entity*> oldIDToEntity;
+
+        for (auto& raw : raws)
+        {
+            std::shared_ptr<Mesh> mesh;
+            if (raw.meshType == "Sphere")   mesh = Mesh::CreateSphere();
+            else if (raw.meshType == "Plane")    mesh = Mesh::CreatePlane(1.0f);
+            else if (raw.meshType == "Cylinder") mesh = Mesh::CreateCylinder();
+            else if (raw.meshType == "Cube")     mesh = Mesh::CreateCube();
+            // "None" = no mesh (group root or light-only entity)
+
+            auto* e = scene->CreateEntity(raw.name);
+            auto& tf = e->GetTransform();
+            tf.Position = raw.pos;
+            tf.Rotation = raw.rot;
+            tf.Scale = raw.scale;
+
+            if (mesh)
+            {
                 e->SetMesh(mesh);
-
                 auto mat = std::make_shared<Material>(shader);
                 e->SetMaterial(mat);
-                e->GetMaterial()->Mat->SetColor(color);
+                e->GetMaterial()->Mat->SetColor(raw.color);
+            }
 
-                if (hasLight)
+            if (raw.hasLight)
+            {
+                e->AddLight(raw.light.Type);
+                *e->GetLight() = raw.light;
+            }
+
+            if (raw.hasScript)
+                e->SetScript(raw.scriptPath);
+
+            if (raw.isGroupRoot)
+                e->MakeGroupRoot(raw.name);
+
+            if (raw.savedID != 0)
+                oldIDToEntity[raw.savedID] = e;
+        }
+
+        // Pass 2: wire up group relationships now that every entity exists and
+        // oldIDToEntity maps every saved ID to its new runtime counterpart.
+        {
+            size_t i = 0;
+            for (auto& ep : scene->GetEntities())
+            {
+                if (i < raws.size() && raws[i].inGroup)
                 {
-                    e->AddLight(lightData.Type);
-                    *e->GetLight() = lightData;
+                    auto it = oldIDToEntity.find(raws[i].groupParent);
+                    if (it != oldIDToEntity.end())
+                        ep->SetGroup(it->second->GetID(), raws[i].isNegate);
+                    else
+                        PD_CORE_WARN("SceneSerializer: group parent ID {0} not found — re-save the scene to fix", raws[i].groupParent);
                 }
+                ++i;
             }
         }
 

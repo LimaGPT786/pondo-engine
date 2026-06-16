@@ -1,190 +1,237 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Pondo">
-      <UniqueIdentifier>{C567E50D-317C-0DBF-FAFD-B01E66D109F0}</UniqueIdentifier>
+    <Filter Include="src">
+      <UniqueIdentifier>{2DAB880B-99B4-887C-2230-9F7C8E38947C}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Pondo\Events">
-      <UniqueIdentifier>{09040AF1-F566-9995-9EEC-D14B8A2E6518}</UniqueIdentifier>
+    <Filter Include="src\Pondo">
+      <UniqueIdentifier>{1C76A2B3-88E0-562A-D11E-08D03DC8347F}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Pondo\ImGui">
-      <UniqueIdentifier>{AFDCAF83-1B92-2879-A486-2250103B1F7D}</UniqueIdentifier>
+    <Filter Include="src\Pondo\Events">
+      <UniqueIdentifier>{80AA2A04-6CA3-4956-95D5-2EDB812D2962}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Pondo\Renderer">
-      <UniqueIdentifier>{0B399652-F706-8A58-E09A-FA7ECC0766BD}</UniqueIdentifier>
+    <Filter Include="src\Pondo\ImGui">
+      <UniqueIdentifier>{46108A9B-B29B-F75F-BBAC-7A5427B75360}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Pondo\Scene">
-      <UniqueIdentifier>{A2D45F84-0E8A-D879-977E-D2500333CF7D}</UniqueIdentifier>
+    <Filter Include="src\Pondo\Renderer">
+      <UniqueIdentifier>{42597AB0-2E3D-3B06-979D-355983A02588}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Pondo\Scene">
+      <UniqueIdentifier>{39083A9C-A593-A760-AEA4-2A551AAF0361}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Pondo\Scripting">
+      <UniqueIdentifier>{1E3E199C-8A9F-F6A9-130D-3D5C7F6D2D69}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vendor">
+      <UniqueIdentifier>{B3738122-9F15-ACF8-88D0-BF4C74113349}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vendor\mcut">
+      <UniqueIdentifier>{3BB57CC1-A76A-F5B6-305F-EF8D9C13ECBA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vendor\mcut\source">
+      <UniqueIdentifier>{FB46F8F2-E72A-B948-508B-B39B3C8EA3CA}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\Pondo.h" />
+    <ClInclude Include="src\Pondo.h">
+      <Filter>src</Filter>
+    </ClInclude>
     <ClInclude Include="src\Pondo\Application.h">
-      <Filter>Pondo</Filter>
+      <Filter>src\Pondo</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Core.h">
-      <Filter>Pondo</Filter>
+      <Filter>src\Pondo</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\EntryPoint.h">
-      <Filter>Pondo</Filter>
+      <Filter>src\Pondo</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Events\ApplicationEvents.h">
-      <Filter>Pondo\Events</Filter>
+      <Filter>src\Pondo\Events</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Events\Event.h">
-      <Filter>Pondo\Events</Filter>
+      <Filter>src\Pondo\Events</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Events\KeyEvents.h">
-      <Filter>Pondo\Events</Filter>
+      <Filter>src\Pondo\Events</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Events\MouseEvents.h">
-      <Filter>Pondo\Events</Filter>
+      <Filter>src\Pondo\Events</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\ImGui\ImGuiKeyMap.h">
-      <Filter>Pondo\ImGui</Filter>
+      <Filter>src\Pondo\ImGui</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\ImGui\ImGuiLayer.h">
-      <Filter>Pondo\ImGui</Filter>
+      <Filter>src\Pondo\ImGui</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Input.h">
-      <Filter>Pondo</Filter>
+      <Filter>src\Pondo</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Layer.h">
-      <Filter>Pondo</Filter>
+      <Filter>src\Pondo</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\LayerStack.h">
-      <Filter>Pondo</Filter>
+      <Filter>src\Pondo</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Log.h">
-      <Filter>Pondo</Filter>
+      <Filter>src\Pondo</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Renderer\Buffer.h">
-      <Filter>Pondo\Renderer</Filter>
+      <Filter>src\Pondo\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Renderer\Camera.h">
-      <Filter>Pondo\Renderer</Filter>
+      <Filter>src\Pondo\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Renderer\Framebuffer.h">
-      <Filter>Pondo\Renderer</Filter>
+      <Filter>src\Pondo\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Renderer\LightEnvironment.h">
-      <Filter>Pondo\Renderer</Filter>
+      <Filter>src\Pondo\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Renderer\Material.h">
-      <Filter>Pondo\Renderer</Filter>
+      <Filter>src\Pondo\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Renderer\Mesh.h">
-      <Filter>Pondo\Renderer</Filter>
+      <Filter>src\Pondo\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Renderer\RayUtils.h">
-      <Filter>Pondo\Renderer</Filter>
+      <Filter>src\Pondo\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Renderer\Renderer.h">
-      <Filter>Pondo\Renderer</Filter>
+      <Filter>src\Pondo\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Renderer\Shader.h">
-      <Filter>Pondo\Renderer</Filter>
+      <Filter>src\Pondo\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Renderer\Shaders.h">
-      <Filter>Pondo\Renderer</Filter>
+      <Filter>src\Pondo\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Renderer\VertexArray.h">
-      <Filter>Pondo\Renderer</Filter>
+      <Filter>src\Pondo\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Scene\Components.h">
-      <Filter>Pondo\Scene</Filter>
+      <Filter>src\Pondo\Scene</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Scene\EditorCommands.h">
-      <Filter>Pondo\Scene</Filter>
+      <Filter>src\Pondo\Scene</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Scene\EditorGeometry.h">
-      <Filter>Pondo\Scene</Filter>
+      <Filter>src\Pondo\Scene</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Scene\EditorLayer.h">
-      <Filter>Pondo\Scene</Filter>
+      <Filter>src\Pondo\Scene</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Scene\Entity.h">
-      <Filter>Pondo\Scene</Filter>
+      <Filter>src\Pondo\Scene</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Scene\FileDialogs.h">
-      <Filter>Pondo\Scene</Filter>
+      <Filter>src\Pondo\Scene</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Scene\Scene.h">
-      <Filter>Pondo\Scene</Filter>
+      <Filter>src\Pondo\Scene</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Scene\SceneLayer.h">
-      <Filter>Pondo\Scene</Filter>
+      <Filter>src\Pondo\Scene</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Scene\SceneSerializer.h">
-      <Filter>Pondo\Scene</Filter>
+      <Filter>src\Pondo\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Pondo\Scripting\ScriptEngine.h">
+      <Filter>src\Pondo\Scripting</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Timestep.h">
-      <Filter>Pondo</Filter>
+      <Filter>src\Pondo</Filter>
     </ClInclude>
     <ClInclude Include="src\Pondo\Window.h">
-      <Filter>Pondo</Filter>
+      <Filter>src\Pondo</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Pondo\Application.cpp">
-      <Filter>Pondo</Filter>
+      <Filter>src\Pondo</Filter>
     </ClCompile>
     <ClCompile Include="src\Pondo\ImGui\ImGuiLayer.cpp">
-      <Filter>Pondo\ImGui</Filter>
+      <Filter>src\Pondo\ImGui</Filter>
     </ClCompile>
     <ClCompile Include="src\Pondo\Input.cpp">
-      <Filter>Pondo</Filter>
+      <Filter>src\Pondo</Filter>
     </ClCompile>
     <ClCompile Include="src\Pondo\Layer.cpp">
-      <Filter>Pondo</Filter>
+      <Filter>src\Pondo</Filter>
     </ClCompile>
     <ClCompile Include="src\Pondo\LayerStack.cpp">
-      <Filter>Pondo</Filter>
+      <Filter>src\Pondo</Filter>
     </ClCompile>
     <ClCompile Include="src\Pondo\Log.cpp">
-      <Filter>Pondo</Filter>
+      <Filter>src\Pondo</Filter>
     </ClCompile>
     <ClCompile Include="src\Pondo\Renderer\Buffer.cpp">
-      <Filter>Pondo\Renderer</Filter>
+      <Filter>src\Pondo\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="src\Pondo\Renderer\Camera.cpp">
-      <Filter>Pondo\Renderer</Filter>
+      <Filter>src\Pondo\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="src\Pondo\Renderer\Framebuffer.cpp">
-      <Filter>Pondo\Renderer</Filter>
+      <Filter>src\Pondo\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="src\Pondo\Renderer\Material.cpp">
-      <Filter>Pondo\Renderer</Filter>
+      <Filter>src\Pondo\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="src\Pondo\Renderer\Mesh.cpp">
-      <Filter>Pondo\Renderer</Filter>
+      <Filter>src\Pondo\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="src\Pondo\Renderer\Renderer.cpp">
-      <Filter>Pondo\Renderer</Filter>
+      <Filter>src\Pondo\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="src\Pondo\Renderer\Shader.cpp">
-      <Filter>Pondo\Renderer</Filter>
+      <Filter>src\Pondo\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="src\Pondo\Renderer\VertexArray.cpp">
-      <Filter>Pondo\Renderer</Filter>
+      <Filter>src\Pondo\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="src\Pondo\Scene\EditorLayer.cpp">
-      <Filter>Pondo\Scene</Filter>
+      <Filter>src\Pondo\Scene</Filter>
     </ClCompile>
     <ClCompile Include="src\Pondo\Scene\Entity.cpp">
-      <Filter>Pondo\Scene</Filter>
+      <Filter>src\Pondo\Scene</Filter>
     </ClCompile>
     <ClCompile Include="src\Pondo\Scene\Scene.cpp">
-      <Filter>Pondo\Scene</Filter>
+      <Filter>src\Pondo\Scene</Filter>
     </ClCompile>
     <ClCompile Include="src\Pondo\Scene\SceneLayer.cpp">
-      <Filter>Pondo\Scene</Filter>
+      <Filter>src\Pondo\Scene</Filter>
     </ClCompile>
     <ClCompile Include="src\Pondo\Scene\SceneSerializer.cpp">
-      <Filter>Pondo\Scene</Filter>
+      <Filter>src\Pondo\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Pondo\Scripting\ScriptEngine.cpp">
+      <Filter>src\Pondo\Scripting</Filter>
     </ClCompile>
     <ClCompile Include="src\Pondo\Window.cpp">
-      <Filter>Pondo</Filter>
+      <Filter>src\Pondo</Filter>
+    </ClCompile>
+    <ClCompile Include="vendor\mcut\source\bvh.cpp">
+      <Filter>vendor\mcut\source</Filter>
+    </ClCompile>
+    <ClCompile Include="vendor\mcut\source\frontend.cpp">
+      <Filter>vendor\mcut\source</Filter>
+    </ClCompile>
+    <ClCompile Include="vendor\mcut\source\hmesh.cpp">
+      <Filter>vendor\mcut\source</Filter>
+    </ClCompile>
+    <ClCompile Include="vendor\mcut\source\kernel.cpp">
+      <Filter>vendor\mcut\source</Filter>
+    </ClCompile>
+    <ClCompile Include="vendor\mcut\source\math.cpp">
+      <Filter>vendor\mcut\source</Filter>
+    </ClCompile>
+    <ClCompile Include="vendor\mcut\source\mcut.cpp">
+      <Filter>vendor\mcut\source</Filter>
+    </ClCompile>
+    <ClCompile Include="vendor\mcut\source\preproc.cpp">
+      <Filter>vendor\mcut\source</Filter>
+    </ClCompile>
+    <ClCompile Include="vendor\mcut\source\shewchuk.c">
+      <Filter>vendor\mcut\source</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

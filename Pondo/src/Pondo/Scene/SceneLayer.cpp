@@ -7,13 +7,143 @@
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include "Pondo/Scene/SceneSerializer.h"
+#include "Pondo/Scene/Entity.h"
+
+#include "Pondo/Scripting/ScriptEngine.h"
+
+extern "C" {
+    #include <mcut/mcut.h>
+}
+
+// -------------------------------------------------------
+//  Play lifecycle
+// -------------------------------------------------------
+void SceneLayer::TakeSnapshot()
+{
+    m_SceneSnapshot.clear();
+    for (auto& ep : m_Scene->GetEntities())
+    {
+        auto* e = ep.get();
+        EntitySnapshot snap;
+        snap.Tag = e->GetTag();
+        snap.Transform = e->GetTransform();
+        snap.HasMesh = e->HasMesh();
+        snap.HasMaterial = e->HasMaterial();
+        snap.HasLight = e->HasLight();
+        snap.HasScript = e->HasScript();
+
+        if (snap.HasMaterial && e->GetMaterial()->Mat)
+            snap.MaterialColor = e->GetMaterial()->Mat->GetColor();
+        if (snap.HasLight)
+            snap.Light = *e->GetLight();
+        if (snap.HasScript)
+            snap.Script = *e->GetScript();
+
+        m_SceneSnapshot.push_back(snap);
+    }
+}
+
+void SceneLayer::RestoreSnapshot()
+{
+    m_Selection.clear();
+    m_Scene->Clear();
+
+    for (auto& snap : m_SceneSnapshot)
+    {
+        auto* e = m_Scene->CreateEntity(snap.Tag);
+        e->GetTransform() = snap.Transform;
+
+        if (snap.HasMesh)
+        {
+            // Re-create mesh by name — we match by tag prefix
+            std::shared_ptr<Pondo::Mesh> mesh;
+            std::string& tag = snap.Tag;
+            if (tag.find("Sphere") != std::string::npos) mesh = Pondo::Mesh::CreateSphere();
+            else if (tag.find("Plane") != std::string::npos) mesh = Pondo::Mesh::CreatePlane(1.0f);
+            else if (tag.find("Cylinder") != std::string::npos) mesh = Pondo::Mesh::CreateCylinder();
+            else                                                 mesh = Pondo::Mesh::CreateCube();
+            e->SetMesh(mesh);
+        }
+        if (snap.HasMaterial)
+        {
+            e->SetMaterial(std::make_shared<Pondo::Material>(m_Shader));
+            e->GetMaterial()->Mat->SetColor(snap.MaterialColor);
+        }
+        if (snap.HasLight)
+        {
+            e->AddLight(snap.Light.Type);
+            *e->GetLight() = snap.Light;
+        }
+        if (snap.HasScript)
+            e->SetScript(snap.Script.ScriptPath);
+    }
+}
+
+// -------------------------------------------------------
+//  CSG helpers
+// -------------------------------------------------------
+
+static void RecalcNormalsSmooth(std::vector<Pondo::Vertex>& verts,
+    const std::vector<unsigned int>& idx)
+{
+    // Zero out normals
+    for (auto& v : verts)
+        v.Normal = { 0.0f, 0.0f, 0.0f };
+
+    // Accumulate face normals weighted by angle
+    for (size_t i = 0; i + 2 < idx.size(); i += 3)
+    {
+        uint32_t i0 = idx[i], i1 = idx[i + 1], i2 = idx[i + 2];
+        if (i0 >= verts.size() || i1 >= verts.size() || i2 >= verts.size())
+            continue;
+
+        glm::vec3 e1 = verts[i1].Position - verts[i0].Position;
+        glm::vec3 e2 = verts[i2].Position - verts[i0].Position;
+        glm::vec3 n = glm::cross(e1, e2); // not normalized — length = 2*area weight
+
+        verts[i0].Normal += n;
+        verts[i1].Normal += n;
+        verts[i2].Normal += n;
+    }
+
+    // Normalize — guard against degenerate verts
+    for (auto& v : verts)
+    {
+        float len = glm::length(v.Normal);
+        if (len > 1e-6f)
+            v.Normal /= len;
+        else
+            v.Normal = { 0.0f, 1.0f, 0.0f };
+    }
+}
+
+void SceneLayer::Play()
+{
+    if (m_PlayState != PlayState::Edit) return;
+    TakeSnapshot();
+    m_PlayState = PlayState::Playing;
+    Pondo::ScriptEngine::OnPlayStart(m_Scene.get());
+}
+
+void SceneLayer::Pause()
+{
+    if (m_PlayState == PlayState::Playing) m_PlayState = PlayState::Paused;
+    else if (m_PlayState == PlayState::Paused) m_PlayState = PlayState::Playing;
+}
+
+void SceneLayer::Stop()
+{
+    if (m_PlayState == PlayState::Edit) return;
+    Pondo::ScriptEngine::OnPlayStop();
+    m_PlayState = PlayState::Edit;
+    RestoreSnapshot();
+}
 
 // -------------------------------------------------------
 //  Construction / wiring
 // -------------------------------------------------------
 
 SceneLayer::SceneLayer() : Layer("SceneLayer") {}
-static bool s_prevLmb = false;
 void SceneLayer::SetFramebuffer(std::shared_ptr<Pondo::Framebuffer> fb)
 {
     m_Framebuffer = fb;
@@ -445,55 +575,32 @@ void SceneLayer::TryPickEntity(
         }
     }
 
-    if (
-        !best)
+    if (!best)
     {
-        if (
-            !addToSelection)
-        {
-            m_Selection.clear();
-        }
-
-        return;
+		if (!addToSelection) m_Selection.clear();
+		return;
     }
 
-    if (
-        addToSelection)
+    // If the picked entity belongs to a group, select the whole group
+    if (best->InGroup())
     {
-        bool found =
-            false;
-
-        for (
-            auto* e :
-            m_Selection)
+        uint32_t parentID = best->GetGroup()->ParentID;
+        auto* root = m_Scene->FindEntity(parentID);
+        if (root)
         {
-            if (
-                e ==
-                best)
-            {
-                found =
-                    true;
-
-                break;
-            }
+            auto children = GetGroupChildren(parentID);
+            if (!addToSelection) m_Selection.clear();
+            if (std::find(m_Selection.begin(), m_Selection.end(), root) == m_Selection.end())
+                m_Selection.push_back(root);
+            for (auto* c : children)
+                if (std::find(m_Selection.begin(), m_Selection.end(), c) == m_Selection.end())
+                    m_Selection.push_back(c);
+            return;
         }
-
-        if (
-            !found)
-        {
-            m_Selection
-                .
-                push_back(
-                    best);
-        }
-
-        return;
     }
 
-    m_Selection.clear();
-
-    m_Selection.push_back(
-        best);
+    if (!addToSelection) m_Selection.clear();
+    m_Selection.push_back(best);
 }
 
 // -------------------------------------------------------
@@ -783,6 +890,7 @@ bool SceneLayer::EndGizmoDrag()
 
 void SceneLayer::OnAttach()
 {
+    Pondo::ScriptEngine::Init();
     m_Camera = std::make_shared<Pondo::Camera>(60.0f, 1280.0f / 720.0f, 0.1f, 1000.0f);
     m_Shader = std::make_shared<Pondo::Shader>(s_VertSrc, s_FragSrc);
     m_FlatShader = std::make_shared<Pondo::Shader>(s_FlatVertSrc, s_FlatFragSrc);
@@ -801,6 +909,12 @@ void SceneLayer::OnAttach()
 
 void SceneLayer::OnUpdate(Pondo::Timestep ts)
 {
+    if (m_PlayState == PlayState::Playing)
+    {
+        Pondo::ScriptEngine::OnUpdate(m_Scene.get(), ts.GetSeconds());
+        return; // no camera movement / gizmo input during play
+    }
+
     if (!m_ViewportFocused) { m_FirstMouseLook = true; return; }
 
     float spd = 5.0f * ts.GetSeconds();
@@ -829,101 +943,6 @@ void SceneLayer::OnUpdate(Pondo::Timestep ts)
     else {
         m_FirstMouseLook = true;
     }
-
-    if (IsDraggingGizmo())
-    {
-        auto [mx, my] =
-            Pondo::Input
-            ::GetMousePosition();
-
-        UpdateGizmoDrag(
-            {
-                mx,
-                my
-            },
-            m_EnableSnapping,
-            m_MoveIncrement,
-            m_RotateIncrement,
-            m_ScaleIncrement);
-    }
-
-    bool lmb =
-        Pondo::Input
-        ::IsMouseButtonPressed(
-            GLFW_MOUSE_BUTTON_LEFT);
-
-    auto [mx, my] =
-        Pondo::Input
-        ::GetMousePosition();
-
-    glm::vec2 mouse =
-    {
-        mx,
-        my
-    };
-
-    bool pressed =
-        lmb
-        &&
-        !s_prevLmb;
-
-    bool released =
-        !lmb
-        &&
-        s_prevLmb;
-
-    if (
-        pressed)
-    {
-        int axis =
-            GizmoAxisHit(
-                mouse);
-
-        if (
-            axis >= 0)
-        {
-            BeginGizmoDrag(
-                axis,
-                mouse);
-        }
-        else
-        {
-            bool add =
-                Pondo::Input
-                ::IsKeyPressed(
-                    GLFW_KEY_LEFT_SHIFT)
-                ||
-                Pondo::Input
-                ::IsKeyPressed(
-                    GLFW_KEY_RIGHT_SHIFT);
-
-            TryPickEntity(
-                mouse,
-                add);
-        }
-    }
-
-    if (
-        lmb
-        &&
-        IsDraggingGizmo())
-    {
-        UpdateGizmoDrag(
-            mouse,
-            m_EnableSnapping,
-            m_MoveIncrement,
-            m_RotateIncrement,
-            m_ScaleIncrement);
-    }
-
-    if (
-        released)
-    {
-        EndGizmoDrag();
-    }
-
-    s_prevLmb =
-        lmb;
 }
 
 void SceneLayer::OnRender()
@@ -952,7 +971,40 @@ void SceneLayer::OnRender()
         auto* mc = ep->GetMesh();
         auto* mat = ep->GetMaterial();
         if (!mc || !mat || !mc->MeshData || !mat->Mat) continue;
-        Pondo::Renderer::SubmitMesh(mc->MeshData, mat->Mat, ep->GetTransform().GetTransform());
+
+        bool negate =
+            ep->IsNegate();
+
+        if (negate)
+        {
+            glm::vec4 original =
+                mat->Mat->GetColor();
+
+            mat->Mat->SetColor(
+                {
+                    1.0f,
+                    0.55f,
+                    0.55f,
+                    1.0f
+                });
+
+            Pondo::Renderer::SubmitMesh(
+                mc->MeshData,
+                mat->Mat,
+                ep->GetTransform()
+                .GetTransform());
+
+            mat->Mat->SetColor(
+                original);
+        }
+        else
+        {
+            Pondo::Renderer::SubmitMesh(
+                mc->MeshData,
+                mat->Mat,
+                ep->GetTransform()
+                .GetTransform());
+        }
     }
 
     m_FlatShader->Bind();
@@ -1401,4 +1453,436 @@ void SceneLayer::DrawScaleDot(const glm::vec3& pos, float size, const glm::vec4&
     glDrawArrays(GL_POINTS, 0, 1);
     m_Arrow.VA->Unbind();
     glPointSize(1.0f);
+}
+
+void SceneLayer::NegateSelected()
+{
+    if (m_Selection.empty())
+        return;
+
+    for (auto* e : m_Selection)
+    {
+        if (!e || !e->InGroup())
+            continue;
+
+        auto* gc = e->GetGroup();
+        if (!gc) continue;
+
+        bool neg = !gc->IsNegate;
+        e->SetGroup(gc->ParentID, neg);
+
+        if (e->HasMaterial())
+        {
+            auto* mat = e->GetMaterial();
+            if (mat && mat->Mat)
+            {
+                mat->Mat->SetColor(neg
+                    ? glm::vec4{ 1.0f, 0.35f, 0.35f, 1.0f }
+                    : glm::vec4{ 1.0f, 1.0f,  1.0f,  1.0f });
+            }
+        }
+    }
+}
+
+Pondo::Entity* SceneLayer::CreateGroup(const std::string& name)
+{
+    // Snapshot IDs before CreateEntity, which may reallocate m_Entities
+    std::vector<uint32_t> selIDs;
+    selIDs.reserve(m_Selection.size());
+    for (auto* e : m_Selection) selIDs.push_back(e->GetID());
+
+    // Create the group root entity (no mesh)
+    auto* root = m_Scene->CreateEntity(name);
+    root->MakeGroupRoot(name);
+    uint32_t rootID = root->GetID();
+
+    // Parent all previously-selected entities into this group
+    for (uint32_t id : selIDs)
+    {
+        auto* e = m_Scene->FindEntity(id);
+        if (e && !e->IsGroupRoot())
+            e->SetGroup(rootID, false);
+    }
+
+    m_Selection.clear();
+    m_Selection.push_back(m_Scene->FindEntity(rootID));
+    return m_Selection[0];
+}
+
+void SceneLayer::UngroupSelected()
+{
+    if (m_Selection.empty()) return;
+    auto* root = m_Selection[0];
+    if (!root->IsGroupRoot()) return;
+
+    uint32_t rootID = root->GetID();
+
+    // Remove group membership from all children
+    for (auto& ep : m_Scene->GetEntities())
+    {
+        auto* gc = ep->GetGroup();
+        if (gc && gc->ParentID == rootID)
+            ep->RemoveFromGroup();
+    }
+
+    // Destroy the root entity
+    m_Scene->DestroyEntity(rootID);
+    m_Selection.clear();
+}
+
+static std::shared_ptr<Pondo::Mesh> SubtractMeshes(
+    Pondo::Entity* positive,
+    Pondo::Entity* negative)
+{
+    if (!positive || !negative) return nullptr;
+
+    auto* pos = positive->GetMesh();
+    auto* neg = negative->GetMesh();
+    if (!pos || !neg || !pos->MeshData || !neg->MeshData) return nullptr;
+
+    const auto& posVerts = pos->MeshData->GetVertices();
+    const auto& posIndices = pos->MeshData->GetIndices();
+    const auto& negVerts = neg->MeshData->GetVertices();
+    const auto& negIndices = neg->MeshData->GetIndices();
+
+    if (posVerts.empty() || posIndices.empty() ||
+        negVerts.empty() || negIndices.empty() ||
+        posIndices.size() % 3 != 0 || negIndices.size() % 3 != 0)
+    {
+        return pos->MeshData; // passthrough — nothing to cut
+    }
+
+    glm::mat4 posTf = positive->GetTransform().GetTransform();
+    glm::mat4 negTf = negative->GetTransform().GetTransform();
+
+    // World-space vertex arrays (double precision — mcut requirement)
+    std::vector<double> srcCoords, cutCoords;
+    srcCoords.reserve(posVerts.size() * 3);
+    cutCoords.reserve(negVerts.size() * 3);
+
+    for (auto& v : posVerts) {
+        glm::vec4 wp = posTf * glm::vec4(v.Position, 1.0f);
+        srcCoords.push_back(wp.x); srcCoords.push_back(wp.y); srcCoords.push_back(wp.z);
+    }
+    for (auto& v : negVerts) {
+        glm::vec4 wp = negTf * glm::vec4(v.Position, 1.0f);
+        cutCoords.push_back(wp.x); cutCoords.push_back(wp.y); cutCoords.push_back(wp.z);
+    }
+
+    std::vector<uint32_t> srcFaces, cutFaces;
+    for (auto i : posIndices) srcFaces.push_back((uint32_t)i);
+    for (auto i : negIndices) cutFaces.push_back((uint32_t)i);
+
+    std::vector<uint32_t> srcFaceSizes(posIndices.size() / 3, 3);
+    std::vector<uint32_t> cutFaceSizes(negIndices.size() / 3, 3);
+
+    McContext ctx = MC_NULL_HANDLE;
+    mcCreateContext(&ctx, MC_NULL_HANDLE);
+
+    McResult r = mcDispatch(
+        ctx,
+        MC_DISPATCH_VERTEX_ARRAY_DOUBLE,
+        srcCoords.data(), srcFaces.data(), srcFaceSizes.data(),
+        (uint32_t)(srcCoords.size() / 3), (uint32_t)srcFaceSizes.size(),
+        cutCoords.data(), cutFaces.data(), cutFaceSizes.data(),
+        (uint32_t)(cutCoords.size() / 3), (uint32_t)cutFaceSizes.size()
+    );
+
+    if (r != MC_NO_ERROR) {
+        mcReleaseContext(ctx);
+        return pos->MeshData;
+    }
+
+    uint32_t numCC = 0;
+    mcGetConnectedComponents(ctx, MC_CONNECTED_COMPONENT_TYPE_FRAGMENT, 0, nullptr, &numCC);
+
+    if (numCC == 0) {
+        mcReleaseContext(ctx);
+        return pos->MeshData;
+    }
+
+    std::vector<McConnectedComponent> comps(numCC);
+    mcGetConnectedComponents(ctx, MC_CONNECTED_COMPONENT_TYPE_FRAGMENT, numCC, comps.data(), nullptr);
+
+    // Collect ALL above-fragments and merge them (handles disconnected results)
+    std::vector<Pondo::Vertex> finalVerts;
+    std::vector<unsigned int>  finalIdx;
+
+    for (auto& cc : comps)
+    {
+        McFragmentLocation loc;
+        mcGetConnectedComponentData(ctx, cc, MC_CONNECTED_COMPONENT_DATA_FRAGMENT_LOCATION,
+            sizeof(loc), &loc, nullptr);
+        if (loc != MC_FRAGMENT_LOCATION_ABOVE)
+            continue;
+
+        // Extract vertices
+        uint64_t vertBytes = 0;
+        mcGetConnectedComponentData(ctx, cc, MC_CONNECTED_COMPONENT_DATA_VERTEX_DOUBLE,
+            0, nullptr, &vertBytes);
+        std::vector<double> outVerts(vertBytes / sizeof(double));
+        mcGetConnectedComponentData(ctx, cc, MC_CONNECTED_COMPONENT_DATA_VERTEX_DOUBLE,
+            vertBytes, outVerts.data(), nullptr);
+
+        // Extract triangulated indices
+        uint64_t idxBytes = 0;
+        mcGetConnectedComponentData(ctx, cc, MC_CONNECTED_COMPONENT_DATA_FACE_TRIANGULATION,
+            0, nullptr, &idxBytes);
+        std::vector<uint32_t> outIdx(idxBytes / sizeof(uint32_t));
+        mcGetConnectedComponentData(ctx, cc, MC_CONNECTED_COMPONENT_DATA_FACE_TRIANGULATION,
+            idxBytes, outIdx.data(), nullptr);
+
+        if (outVerts.empty() || outIdx.empty()) continue;
+
+        uint32_t base = (uint32_t)finalVerts.size();
+
+        for (size_t i = 0; i + 2 < outVerts.size(); i += 3) {
+            Pondo::Vertex v;
+            v.Position = { (float)outVerts[i], (float)outVerts[i + 1], (float)outVerts[i + 2] };
+            v.Normal = { 0.0f, 1.0f, 0.0f }; // recalculated below
+            v.TexCoord = { 0.0f, 0.0f };
+            finalVerts.push_back(v);
+        }
+        for (auto i : outIdx)
+            finalIdx.push_back((unsigned int)(i + base));
+    }
+
+    mcReleaseContext(ctx);
+
+    if (finalVerts.empty() || finalIdx.empty())
+        return pos->MeshData; // mcut gave nothing usable
+
+    // Smooth normals across the whole merged result
+    RecalcNormalsSmooth(finalVerts, finalIdx);
+
+    return std::make_shared<Pondo::Mesh>(finalVerts, finalIdx);
+}
+
+static std::shared_ptr<Pondo::Mesh> CombineMeshes(
+    Pondo::Entity* a,
+    Pondo::Entity* b)
+{
+    glm::mat4 tfA = a->GetTransform().GetTransform();
+    const auto& rawVertsA = a->GetMesh()->MeshData->GetVertices();
+    std::vector<Pondo::Vertex> resultVerts;
+    resultVerts.reserve(rawVertsA.size());
+    for (auto v : rawVertsA) {
+        glm::vec4 p = tfA * glm::vec4(v.Position, 1.0f);
+        v.Position = { p.x, p.y, p.z };
+        resultVerts.push_back(v);
+    }
+
+    auto resultIdx =
+        a->GetMesh()->MeshData->GetIndices();
+
+    auto& vertsB =
+        b->GetMesh()->MeshData->GetVertices();
+
+    auto& idxB =
+        b->GetMesh()->MeshData->GetIndices();
+
+    uint32_t base =
+        (uint32_t)resultVerts.size();
+
+    glm::mat4 tf =
+        b->GetTransform().GetTransform();
+
+    for (auto v : vertsB)
+    {
+        glm::vec4 p =
+            tf *
+            glm::vec4(
+                v.Position,
+                1.0f);
+
+        v.Position =
+        {
+            p.x,
+            p.y,
+            p.z
+        };
+
+        resultVerts.push_back(v);
+    }
+
+    for (auto i : idxB)
+    {
+        resultIdx.push_back(
+            i + base);
+    }
+
+    // Recalculate normals so seams between combined parts look correct
+    RecalcNormalsSmooth(resultVerts, resultIdx);
+
+    return std::make_shared<Pondo::Mesh>(resultVerts, resultIdx);
+}
+
+SceneLayer::UnionResult SceneLayer::UnionGroup()
+{
+    if (m_Selection.empty())
+        return UnionResult::NoChildren;
+
+    auto* root = m_Selection[0];
+
+    if (!root->IsGroupRoot())
+        return UnionResult::NoChildren;
+
+    uint32_t rootID = root->GetID();
+
+    auto children = GetGroupChildren(rootID);
+
+    std::vector<Pondo::Entity*> positives;
+    std::vector<Pondo::Entity*> negatives;
+
+    for (auto* e : children)
+    {
+        auto* mesh = e->GetMesh();
+        if (!mesh || !mesh->MeshData)
+            continue;
+
+        if (e->IsNegate())
+            negatives.push_back(e);
+        else
+            positives.push_back(e);
+    }
+
+    if (positives.empty())
+        return UnionResult::NoPositiveParts;
+
+    //
+    // STEP 1 — combine positives into a temporary scratch entity
+    //
+
+    auto* tempRoot = m_Scene->CreateEntity("__union");
+    uint32_t tempRootID = tempRoot->GetID();
+
+    // NOTE: CreateEntity may reallocate m_Entities.
+    // Re-fetch root and all child pointers via ID now.
+    root = m_Scene->FindEntity(rootID);
+
+    for (size_t i = 0; i < positives.size(); i++)
+        positives[i] = m_Scene->FindEntity(positives[i]->GetID());
+    for (size_t i = 0; i < negatives.size(); i++)
+        negatives[i] = m_Scene->FindEntity(negatives[i]->GetID());
+
+    // Re-fetch tempRoot too (FindEntity is safe)
+    tempRoot = m_Scene->FindEntity(tempRootID);
+
+    tempRoot->SetMesh(positives[0]->GetMesh()->MeshData);
+    tempRoot->GetTransform() = positives[0]->GetTransform();
+
+    for (size_t i = 1; i < positives.size(); i++)
+    {
+        auto combined = CombineMeshes(tempRoot, positives[i]);
+        if (combined)
+            tempRoot->SetMesh(combined);
+        tempRoot->GetTransform() = {};
+    }
+
+    //
+    // STEP 2 — subtract negatives
+    //
+
+    for (auto* neg : negatives)
+    {
+        auto cut = SubtractMeshes(tempRoot, neg);
+        if (!cut || cut->GetVertices().empty() || cut->GetIndices().empty())
+            continue;
+        tempRoot->SetMesh(cut);
+        tempRoot->GetTransform() = {};
+    }
+
+    //
+    // STEP 3 — read all results out before any destruction
+    //
+
+    std::shared_ptr<Pondo::Mesh>     finalMesh;
+    std::shared_ptr<Pondo::Material> finalMat;
+
+    if (tempRoot->GetMesh())
+        finalMesh = tempRoot->GetMesh()->MeshData;
+
+    if (positives[0]->GetMaterial() && positives[0]->GetMaterial()->Mat)
+        finalMat = positives[0]->GetMaterial()->Mat;
+
+    // Collect child IDs to destroy (everything except root)
+    std::vector<uint32_t> toDestroy;
+    toDestroy.push_back(tempRootID);
+    for (auto* child : children)
+        toDestroy.push_back(child->GetID()); // root's own ID included — filtered below
+
+    //
+    // STEP 4 — destroy temp + children (not root), then apply result via ID lookup
+    //
+
+    for (uint32_t id : toDestroy)
+    {
+        if (id != rootID)
+            m_Scene->DestroyEntity(id);
+    }
+
+    // Re-fetch root — erasures above may have shifted the vector
+    root = m_Scene->FindEntity(rootID);
+    if (!root) return UnionResult::MeshOperationFailed;
+
+    if (finalMesh)
+    {
+        root->SetMesh(finalMesh);
+        root->GetTransform() = {};
+    }
+
+    if (finalMat)
+    {
+        root->SetMaterial(std::make_shared<Pondo::Material>(m_Shader));
+        root->GetMaterial()->Mat = finalMat;
+    }
+
+    if (auto* gr = root->GetGroupRoot())
+        gr->Unioned = true;
+
+    m_Selection.clear();
+    m_Selection.push_back(root);
+    return UnionResult::OK;
+}
+
+void SceneLayer::SeparateSelected()
+{
+    if (m_Selection.empty())
+        return;
+
+    auto* root = m_Selection[0];
+    if (!root || !root->IsGroupRoot())
+        return;
+
+    // Separate can't reconstruct destroyed children — instead just ungroup
+    // the root so it becomes a standalone mesh entity again.
+    uint32_t rootID = root->GetID();
+
+    m_Selection.clear();
+    auto* e = m_Scene->FindEntity(rootID);
+    if (e) m_Selection.push_back(e);
+}
+
+std::vector<Pondo::Entity*>
+SceneLayer::GetGroupChildren(
+    uint32_t groupRootID) const
+{
+    std::vector<Pondo::Entity*> children;
+
+    for (auto& ep : m_Scene->GetEntities())
+    {
+        auto* gc =
+            ep->GetGroup();
+
+        if (
+            gc &&
+            gc->ParentID ==
+            groupRootID)
+        {
+            children.push_back(
+                ep.get());
+        }
+    }
+
+    return children;
 }

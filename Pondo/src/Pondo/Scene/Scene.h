@@ -36,10 +36,37 @@ namespace Pondo {
         void SetName(const std::string& name);
         void Clear();
 
+        enum class PlayState { Edit, Playing, Paused };
+
+        void        Play();
+        void        Pause();
+        void        Stop();
+        PlayState   GetPlayState() const { return m_PlayState; }
+
     private:
         std::string                          m_Name;
         std::unique_ptr<entt::registry>      m_Registry;
         std::vector<std::unique_ptr<Entity>> m_Entities; // handle wrappers (ordered)
+
+        PlayState   m_PlayState = PlayState::Edit;
+
+        // Snapshot for restoring scene on Stop
+        struct EntitySnapshot
+        {
+            std::string              Tag;
+            Pondo::TransformComponent Transform;
+            bool                     HasMesh;
+            bool                     HasMaterial;
+            bool                     HasLight;
+            bool                     HasScript;
+            glm::vec4                MaterialColor;
+            Pondo::LightComponent    Light;
+            Pondo::ScriptComponent   Script;
+        };
+        std::vector<EntitySnapshot> m_SceneSnapshot;
+
+        void TakeSnapshot();
+        void RestoreSnapshot();
     };
 
 #pragma warning(pop)

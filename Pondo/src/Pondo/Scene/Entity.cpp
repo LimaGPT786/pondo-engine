@@ -119,4 +119,79 @@ namespace Pondo {
         m_Registry->remove<LightComponent>(m_Handle);
     }
 
+	// ---- Scripting ------------------------------------------------------
+
+    ScriptComponent* Entity::GetScript()
+    {
+        return m_Registry->try_get<ScriptComponent>(m_Handle);
+    }
+
+    const ScriptComponent* Entity::GetScript() const
+    {
+        return m_Registry->try_get<ScriptComponent>(m_Handle);
+    }
+
+    bool Entity::HasScript() const
+    {
+        return m_Registry->all_of<ScriptComponent>(m_Handle);
+    }
+
+    void Entity::SetScript(const std::string& path)
+    {
+        auto& sc = m_Registry->get_or_emplace<ScriptComponent>(m_Handle);
+        sc.ScriptPath = path;
+        sc.HasError = false;
+        sc.ErrorMsg = "";
+    }
+
+    void Entity::RemoveScript()
+    {
+        m_Registry->remove<ScriptComponent>(m_Handle);
+    }
+
+    GroupRootComponent* Entity::GetGroupRoot()
+    {
+        return m_Registry->try_get<GroupRootComponent>(m_Handle);
+    }
+    const GroupRootComponent* Entity::GetGroupRoot() const
+    {
+        return m_Registry->try_get<GroupRootComponent>(m_Handle);
+    }
+    void Entity::MakeGroupRoot(const std::string& name)
+    {
+        auto& gr = m_Registry->get_or_emplace<GroupRootComponent>(m_Handle);
+        gr.Name = name;
+    }
+    bool Entity::IsGroupRoot() const
+    {
+        return m_Registry->all_of<GroupRootComponent>(m_Handle);
+    }
+
+    GroupComponent* Entity::GetGroup()
+    {
+        return m_Registry->try_get<GroupComponent>(m_Handle);
+    }
+    const GroupComponent* Entity::GetGroup() const
+    {
+        return m_Registry->try_get<GroupComponent>(m_Handle);
+    }
+    void Entity::SetGroup(uint32_t parentID, bool negate)
+    {
+        auto& gc = m_Registry->get_or_emplace<GroupComponent>(m_Handle);
+        gc.ParentID = parentID;
+        gc.IsNegate = negate;
+    }
+    void Entity::RemoveFromGroup()
+    {
+        m_Registry->remove<GroupComponent>(m_Handle);
+    }
+    bool Entity::InGroup() const
+    {
+        return m_Registry->all_of<GroupComponent>(m_Handle);
+    }
+    bool Pondo::Entity::IsNegate() const
+    {
+        const auto* gc = m_Registry->try_get<GroupComponent>(m_Handle);
+        return gc ? gc->IsNegate : false;
+    }
 } // namespace Pondo

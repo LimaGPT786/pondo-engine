@@ -28,6 +28,8 @@ namespace Pondo {
 		unsigned int GetIndexCount()  const { return m_IndexCount; }
 		unsigned int GetVertexCount() const { return m_VertexCount; }
 		const std::string& GetType()  const { return m_Type; }
+		const std::vector<Vertex>& GetVertices() const { return m_Vertices; }
+		const std::vector<unsigned int>& GetIndices()  const { return m_Indices; }
 
 		static std::shared_ptr<Mesh> CreateCube();
 		static std::shared_ptr<Mesh> CreatePlane(float size = 1.0f);
@@ -41,6 +43,9 @@ namespace Pondo {
 		unsigned int m_IndexCount = 0;
 		unsigned int m_VertexCount = 0;
 		std::string  m_Type = "Cube";
+
+		std::vector<Vertex>       m_Vertices;
+		std::vector<unsigned int> m_Indices;
 	};
 #pragma warning(pop)
 

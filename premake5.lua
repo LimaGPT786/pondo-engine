@@ -9,11 +9,14 @@ workspace "Pondo"
 outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 
 IncludeDir = {}
+IncludeDir["lua"]  = "Pondo/vendor/lua/src"
+IncludeDir["sol2"] = "Pondo/vendor/sol2"
 IncludeDir["GLFW"]  = "Pondo/vendor/GLFW/include"
 IncludeDir["glad"]  = "Pondo/vendor/glad/include"
 IncludeDir["glm"]   = "Pondo/vendor/glm"
 IncludeDir["ImGui"] = "Pondo/vendor/imgui"
 IncludeDir["entt"]  = "Pondo/vendor/entt/include"
+IncludeDir["mcut"] = "Pondo/vendor/mcut/include"
 
 include "Pondo/vendor/GLFW"
 
@@ -73,18 +76,57 @@ project "ImGui"
 		runtime "Release"
 		optimize "on"
 
+project "Lua"
+    location "Pondo/vendor/lua"
+    kind "StaticLib"
+    language "C"
+    staticruntime "On"
+
+    targetdir ("%{wks.location}/bin/" .. outputdir .. "/%{prj.name}")
+    objdir    ("%{wks.location}/bin-int/" .. outputdir .. "/%{prj.name}")
+
+    files { "Pondo/vendor/lua/src/*.c" }
+    excludes {
+        "Pondo/vendor/lua/src/lua.c",
+        "Pondo/vendor/lua/src/luac.c"
+    }
+
+    includedirs { "Pondo/vendor/lua/src" }
+
+    filter "configurations:Debug"
+        runtime "Debug"
+        symbols "on"
+
+    filter "configurations:Release"
+        runtime "Release"
+        optimize "on"
+
 project "Pondo"
 	location "Pondo"
 	kind "SharedLib"
 	language "C++"
 
 	targetdir ("%{wks.location}/bin/" .. outputdir .. "/%{prj.name}")
-	objdir    ("%{wks.location}/bin-int/" .. outputdir .. "/%{prj.name}")
+	objdir ("%{wks.location}/bin-int/" .. outputdir .. "/%{prj.name}")
 
 	files {
 		"Pondo/src/**.h",
-		"Pondo/src/**.cpp"
+		"Pondo/src/**.cpp",
+
+		"Pondo/vendor/mcut/source/mcut.cpp",
+		"Pondo/vendor/mcut/source/bvh.cpp",
+		"Pondo/vendor/mcut/source/frontend.cpp",
+		"Pondo/vendor/mcut/source/hmesh.cpp",
+		"Pondo/vendor/mcut/source/kernel.cpp",
+		"Pondo/vendor/mcut/source/math.cpp",
+		"Pondo/vendor/mcut/source/preproc.cpp",
+		"Pondo/vendor/mcut/source/shewchuk.c"
 	}
+
+	filter "files:**/shewchuk.c"
+		language "C"
+
+	filter {}
 
 	includedirs {
 		"%{prj.name}/src",
@@ -93,14 +135,18 @@ project "Pondo"
 		"%{IncludeDir.glad}",
 		"%{IncludeDir.glm}",
 		"%{IncludeDir.ImGui}",
-		"%{IncludeDir.entt}"
+		"%{IncludeDir.entt}",
+		"%{IncludeDir.lua}",
+		"%{IncludeDir.sol2}",
+		"%{IncludeDir.mcut}"
 	}
 
-	links {
+		links {
 		"GLFW",
 		"glad",
 		"ImGui",
-		"opengl32.lib"
+		"opengl32.lib",
+		"Lua"
 	}
 
 	filter "system:windows"
@@ -110,7 +156,8 @@ project "Pondo"
 
 		defines {
 			"PD_PLATFORM_WINDOWS",
-			"PD_BUILD_DLL"
+			"PD_BUILD_DLL",
+			"_WIN32_WINNT=0x0601"
 		}
 
 		postbuildcommands {
@@ -120,18 +167,23 @@ project "Pondo"
 
 	filter "configurations:Debug"
 		defines "PD_DEBUG"
+		runtime "Debug"
 		symbols "On"
 
 	filter "configurations:Release"
 		defines "PD_RELEASE"
+		runtime "Release"
 		optimize "On"
 
 	filter "configurations:Dist"
 		defines "PD_DIST"
+		runtime "Release"
 		optimize "On"
 
 	filter "system:windows"
 		buildoptions "/utf-8"
+
+	filter {}
 
 project "Sandbox"
 	location "Sandbox"

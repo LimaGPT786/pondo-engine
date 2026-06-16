@@ -68,5 +68,8 @@ private:
 
     bool m_WasEditingTransform = false;
     std::vector<Pondo::TransformComponent> m_TransformsBefore;
+
+    bool        m_ShowUnionError = false;
+    std::string m_UnionErrorMsg;
 };
 #pragma warning(pop)

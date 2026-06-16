@@ -78,8 +78,8 @@
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>PD_PLATFORM_WINDOWS;PD_BUILD_DLL;PD_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>src;vendor\spdlog\include;vendor\GLFW\include;vendor\glad\include;vendor\glm;vendor\imgui;vendor\entt\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>PD_PLATFORM_WINDOWS;PD_BUILD_DLL;_WIN32_WINNT=0x0601;PD_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>src;vendor\spdlog\include;vendor\GLFW\include;vendor\glad\include;vendor\glm;vendor\imgui;vendor\entt\include;vendor\lua\src;vendor\sol2;vendor\mcut\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -104,8 +104,8 @@ copy /B /Y ..\bin\Debug-windows-x86_64\Pondo\Pondo.dll ..\bin\Debug-windows-x86_
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>PD_PLATFORM_WINDOWS;PD_BUILD_DLL;PD_RELEASE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>src;vendor\spdlog\include;vendor\GLFW\include;vendor\glad\include;vendor\glm;vendor\imgui;vendor\entt\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>PD_PLATFORM_WINDOWS;PD_BUILD_DLL;_WIN32_WINNT=0x0601;PD_RELEASE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>src;vendor\spdlog\include;vendor\GLFW\include;vendor\glad\include;vendor\glm;vendor\imgui;vendor\entt\include;vendor\lua\src;vendor\sol2;vendor\mcut\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -134,8 +134,8 @@ copy /B /Y ..\bin\Release-windows-x86_64\Pondo\Pondo.dll ..\bin\Release-windows-
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>PD_PLATFORM_WINDOWS;PD_BUILD_DLL;PD_DIST;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>src;vendor\spdlog\include;vendor\GLFW\include;vendor\glad\include;vendor\glm;vendor\imgui;vendor\entt\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>PD_PLATFORM_WINDOWS;PD_BUILD_DLL;_WIN32_WINNT=0x0601;PD_DIST;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>src;vendor\spdlog\include;vendor\GLFW\include;vendor\glad\include;vendor\glm;vendor\imgui;vendor\entt\include;vendor\lua\src;vendor\sol2;vendor\mcut\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -195,6 +195,7 @@ copy /B /Y ..\bin\Dist-windows-x86_64\Pondo\Pondo.dll ..\bin\Dist-windows-x86_64
     <ClInclude Include="src\Pondo\Scene\Scene.h" />
     <ClInclude Include="src\Pondo\Scene\SceneLayer.h" />
     <ClInclude Include="src\Pondo\Scene\SceneSerializer.h" />
+    <ClInclude Include="src\Pondo\Scripting\ScriptEngine.h" />
     <ClInclude Include="src\Pondo\Timestep.h" />
     <ClInclude Include="src\Pondo\Window.h" />
   </ItemGroup>
@@ -218,7 +219,16 @@ copy /B /Y ..\bin\Dist-windows-x86_64\Pondo\Pondo.dll ..\bin\Dist-windows-x86_64
     <ClCompile Include="src\Pondo\Scene\Scene.cpp" />
     <ClCompile Include="src\Pondo\Scene\SceneLayer.cpp" />
     <ClCompile Include="src\Pondo\Scene\SceneSerializer.cpp" />
+    <ClCompile Include="src\Pondo\Scripting\ScriptEngine.cpp" />
     <ClCompile Include="src\Pondo\Window.cpp" />
+    <ClCompile Include="vendor\mcut\source\bvh.cpp" />
+    <ClCompile Include="vendor\mcut\source\frontend.cpp" />
+    <ClCompile Include="vendor\mcut\source\hmesh.cpp" />
+    <ClCompile Include="vendor\mcut\source\kernel.cpp" />
+    <ClCompile Include="vendor\mcut\source\math.cpp" />
+    <ClCompile Include="vendor\mcut\source\mcut.cpp" />
+    <ClCompile Include="vendor\mcut\source\preproc.cpp" />
+    <ClCompile Include="vendor\mcut\source\shewchuk.c" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="vendor\GLFW\GLFW.vcxproj">
@@ -229,6 +239,9 @@ copy /B /Y ..\bin\Dist-windows-x86_64\Pondo\Pondo.dll ..\bin\Dist-windows-x86_64
     </ProjectReference>
     <ProjectReference Include="vendor\imgui\ImGui.vcxproj">
       <Project>{C0FF640D-2C14-8DBE-F595-301E616989EF}</Project>
+    </ProjectReference>
+    <ProjectReference Include="vendor\lua\Lua.vcxproj">
+      <Project>{A705880B-130F-887C-9C8A-9E7C0893937C}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
